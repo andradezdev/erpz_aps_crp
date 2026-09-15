@@ -169,6 +169,7 @@ class APSWorkbench {
 									<span class="small text-muted">Arraste uma operação na linha do tempo para reprogramar. A mudança propagará automaticamente em cadeia para todas as operações sucessoras.</span>
 								</div>
 								<div class="d-flex gap-2">
+									<button class="btn btn-sm btn-default" id="btn-export-gantt"><i class="octicon octicon-file"></i> Exportar Gantt (Excel)</button>
 									<button class="btn btn-sm btn-default" id="btn-refresh-gantt"><i class="octicon octicon-sync"></i> Atualizar Gantt</button>
 								</div>
 							</div>
@@ -202,16 +203,21 @@ class APSWorkbench {
 
 						<!-- Tab 3: Operations Grid -->
 						<div class="aps-tab-pane d-none" id="pane-operations">
+							<div class="d-flex justify-content-between align-items-center mb-3">
+								<h6 class="font-weight-bold m-0">Operações Sequenciadas na Ordem do Gantt</h6>
+								<button class="btn btn-sm btn-default" id="btn-export-ops"><i class="octicon octicon-file"></i> Exportar Operações (Excel)</button>
+							</div>
 							<div class="table-responsive">
 								<table class="table table-bordered table-sm" id="aps-ops-table">
 									<thead>
 										<tr>
+											<th width="40">#</th>
+											<th>Início Programado</th>
+											<th>Término Programado</th>
+											<th>Posto de Trabalho</th>
 											<th>Ordem de Produção</th>
 											<th>Item</th>
 											<th>Operação</th>
-											<th>Posto</th>
-											<th>Início Programado</th>
-											<th>Término Programado</th>
 											<th>Duração</th>
 											<th>Predecessora</th>
 											<th>Situação</th>
@@ -276,6 +282,10 @@ class APSWorkbench {
 
 		this.$container.find("#btn-refresh-gantt").on("click", function() {
 			me.load_gantt();
+		});
+
+		this.$container.find("#btn-export-gantt, #btn-export-ops").on("click", function() {
+			me.export_gantt_excel();
 		});
 	}
 
@@ -596,13 +606,20 @@ class APSWorkbench {
 		const me = this;
 		frappe.call({
 			method: "erpz_aps.api.get_scheduled_operations_summary",
-			args: { ticket_name: this.current_ticket, page_length: 100 },
+			args: { ticket_name: this.current_ticket, page_length: 200 },
 			callback: function(r) {
 				const tbody = $("#aps-ops-tbody").empty();
 				if (r.message && r.message.items) {
-					r.message.items.forEach(o => {
+					r.message.items.forEach((o, index) => {
+						const isAdjustedBadge = o.is_adjusted ? `<span class="badge badge-warning ml-1">Ajustado</span>` : "";
+						const statusBadge = o.status === "Atrasada" ? "badge-danger" : (o.status === "Concluída" ? "badge-success" : "badge-info");
+
 						tbody.append(`
 							<tr>
+								<td class="font-weight-bold text-muted text-center">${index + 1}</td>
+								<td><b>${frappe.datetime.str_to_user(o.planned_start_time)}</b></td>
+								<td><b>${frappe.datetime.str_to_user(o.planned_end_time)}</b></td>
+								<td><span class="badge badge-light">${o.workstation}</span></td>
 								<td>
 									<a href="#" class="btn-open-wo font-weight-bold text-primary" data-wo="${o.work_order}">
 										<i class="octicon octicon-link-external mr-1"></i>${o.work_order}
@@ -610,14 +627,11 @@ class APSWorkbench {
 								</td>
 								<td><strong>${o.production_item}</strong><br><small class="text-muted">${o.item_name || ''}</small></td>
 								<td><span class="badge badge-secondary mr-1">${o.sequence_id}</span> <b>${o.operation}</b></td>
-								<td>${o.workstation}</td>
-								<td>${frappe.datetime.str_to_user(o.planned_start_time)}</td>
-								<td>${frappe.datetime.str_to_user(o.planned_end_time)}</td>
 								<td>${o.duration_mins} min</td>
 								<td>${o.predecessor_operation || '-'}</td>
-								<td><span class="badge ${o.status === 'Atrasada' ? 'badge-danger' : 'badge-info'}">${o.status}</span></td>
+								<td><span class="badge ${statusBadge}">${o.status}</span>${isAdjustedBadge}</td>
 								<td>
-									<button class="btn btn-xs btn-default btn-open-wo" data-wo="${o.work_order}">
+									<button class="btn btn-xs btn-default btn-open-wo" data-wo="${o.work_order}" title="Abrir Ordem de Produção">
 										<i class="octicon octicon-eye"></i> Abrir OP
 									</button>
 								</td>
@@ -633,6 +647,12 @@ class APSWorkbench {
 				}
 			}
 		});
+	}
+
+	export_gantt_excel() {
+		const me = this;
+		if (!this.current_ticket) return;
+		window.open(`/api/method/erpz_aps.api.export_aps_gantt_excel?ticket_name=${me.current_ticket}`);
 	}
 
 	load_adjustment_history() {

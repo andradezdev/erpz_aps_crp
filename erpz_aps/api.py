@@ -240,3 +240,168 @@ def get_scheduled_operations_summary(ticket_name, workstation=None, work_order=N
         "total": total_count,
         "items": items
     }
+
+def style_excel_sheet(ws, title, headers, rows, header_color="1B365D"):
+    """Applies professional enterprise styling to an openpyxl worksheet."""
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    header_fill = PatternFill(start_color=header_color, end_color=header_color, fill_type="solid")
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    zebra_fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+    white_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E0'),
+        right=Side(style='thin', color='CBD5E0'),
+        top=Side(style='thin', color='CBD5E0'),
+        bottom=Side(style='thin', color='CBD5E0')
+    )
+
+    # Title Banner
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+    title_cell = ws.cell(row=1, column=1)
+    title_cell.value = title
+    title_cell.font = Font(name="Calibri", size=13, bold=True, color="FFFFFF")
+    title_cell.fill = PatternFill(start_color="0F2027", end_color="0F2027", fill_type="solid")
+    title_cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.row_dimensions[1].height = 28
+
+    ws.append([]) # row 2 spacer
+    ws.row_dimensions[2].height = 6
+
+    ws.append(headers)
+    ws.row_dimensions[3].height = 24
+
+    for col_idx in range(1, len(headers) + 1):
+        c = ws.cell(row=3, column=col_idx)
+        c.fill = header_fill
+        c.font = header_font
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        c.border = thin_border
+
+    current_row = 4
+    for r in rows:
+        ws.append(r)
+        fill = zebra_fill if (current_row % 2 == 0) else white_fill
+        ws.row_dimensions[current_row].height = 20
+
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=current_row, column=col_idx)
+            cell.fill = fill
+            cell.border = thin_border
+            cell.font = Font(name="Calibri", size=10)
+
+            val = cell.value
+            if isinstance(val, (int, float)):
+                cell.number_format = '#,##0.00'
+                cell.alignment = Alignment(horizontal="right", vertical="center")
+            else:
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+
+        current_row += 1
+
+    for col in ws.columns:
+        max_len = 0
+        col_letter = get_column_letter(col[0].column)
+        for cell in col:
+            if cell.row > 2 and cell.value is not None:
+                max_len = max(max_len, len(str(cell.value)))
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+@frappe.whitelist()
+def export_aps_gantt_excel(ticket_name):
+    """
+    Exports the updated Gantt scheduled operations in chronological sequence and formatted in list mode.
+    """
+    import openpyxl
+    import io
+    from frappe.desk.utils import provide_binary_file
+
+    wb = openpyxl.Workbook()
+
+    # Sheet 1: Sequenciamento Gantt
+    ws1 = wb.active
+    ws1.title = "Sequenciamento Gantt"
+
+    ops = frappe.get_all(
+        "APS Scheduled Operation",
+        filters={"aps_ticket": ticket_name},
+        fields=[
+            "work_order", "mrp_ticket", "production_item", "item_name",
+            "operation", "sequence_id", "workstation", "planned_start_time",
+            "planned_end_time", "duration_mins", "setup_mins", "runtime_mins",
+            "qty_to_produce", "predecessor_operation", "is_adjusted", "status", "delay_hours"
+        ],
+        order_by="planned_start_time ASC, sequence_id ASC"
+    )
+
+    title1 = f"ERPZ APS — Programação e Sequenciamento da Produção (Gantt) | Ticket: {ticket_name}"
+    headers1 = [
+        "Ordem Cronológica", "Início Programado", "Término Programado", "Posto de Trabalho",
+        "Ordem de Produção", "Código Item", "Descrição do Produto", "Operação", "Seq Roteiro",
+        "Duração (min)", "Setup (min)", "Processamento (min)", "Quantidade",
+        "Operação Predecessora", "Situação", "Ajustado no Gantt", "Atraso (h)", "Ticket MRP Origem"
+    ]
+    rows1 = []
+    for idx, o in enumerate(ops, start=1):
+        rows1.append([
+            f"#{idx}",
+            str(o.planned_start_time) if o.planned_start_time else "",
+            str(o.planned_end_time) if o.planned_end_time else "",
+            o.workstation,
+            o.work_order,
+            o.production_item,
+            o.item_name or "",
+            o.operation,
+            o.sequence_id,
+            flt(o.duration_mins),
+            flt(o.setup_mins),
+            flt(o.runtime_mins),
+            flt(o.qty_to_produce),
+            o.predecessor_operation or "Nenhuma (Primeira)",
+            o.status,
+            "SIM (Ajuste Manual)" if o.is_adjusted else "Não",
+            flt(o.delay_hours),
+            o.mrp_ticket or ""
+        ])
+
+    style_excel_sheet(ws1, title1, headers1, rows1, header_color="1B365D")
+
+    # Sheet 2: Carga x Capacidade (CRP)
+    ws2 = wb.create_sheet(title="Carga x Capacidade (CRP)")
+    crp_rows = frappe.get_all(
+        "APS Capacity Load",
+        filters={"aps_ticket": ticket_name},
+        fields=[
+            "workstation", "workstation_name", "period_date",
+            "available_capacity_hours", "planned_load_hours",
+            "capacity_balance_hours", "utilization_pct", "is_bottleneck",
+            "overload_hours", "operations_count"
+        ],
+        order_by="period_date ASC, workstation ASC"
+    )
+    title2 = f"ERPZ APS — Carga x Capacidade por Posto (CRP) | Ticket: {ticket_name}"
+    headers2 = [
+        "Posto de Trabalho", "Descrição", "Data", "Capacidade Disponível (h)",
+        "Carga Programada (h)", "Saldo Capacidade (h)", "Utilização (%)",
+        "Sobrecarga (h)", "Operações Alocadas", "Situação"
+    ]
+    rows2 = []
+    for c in crp_rows:
+        rows2.append([
+            c.workstation,
+            c.workstation_name or "",
+            str(c.period_date),
+            flt(c.available_capacity_hours),
+            flt(c.planned_load_hours),
+            flt(c.capacity_balance_hours),
+            flt(c.utilization_pct),
+            flt(c.overload_hours),
+            c.operations_count,
+            "GARGALO / SOBRECARGA" if c.is_bottleneck else "Normal"
+        ])
+    style_excel_sheet(ws2, title2, headers2, rows2, header_color="2C5282")
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    provide_binary_file(f"Gantt_Sequenciamento_{ticket_name}", "xlsx", buf.getvalue())
