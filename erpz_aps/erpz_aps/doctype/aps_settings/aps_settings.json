@@ -1,0 +1,153 @@
+{
+ "actions": [],
+ "creation": "2026-09-13 02:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sec_general",
+  "finite_capacity",
+  "default_direction",
+  "default_priority_rule",
+  "col_1",
+  "consider_setup_time",
+  "consider_transfer_time",
+  "default_transfer_mins",
+  "allow_alternative_workstations",
+  "sec_thresholds",
+  "overload_threshold_pct",
+  "col_2",
+  "auto_update_job_cards",
+  "auto_update_work_orders"
+ ],
+ "fields": [
+  {
+   "fieldname": "sec_general",
+   "fieldtype": "Section Break",
+   "label": "Parâmetros Gerais do APS"
+  },
+  {
+   "fieldname": "finite_capacity",
+   "fieldtype": "Check",
+   "label": "Sequenciamento por Capacidade Finita",
+   "default": "1"
+  },
+  {
+   "fieldname": "default_direction",
+   "fieldtype": "Select",
+   "label": "Direção Padrão de Alocação",
+   "options": "Para Frente (Forward)\nPara Trás (Backward)",
+   "default": "Para Frente (Forward)"
+  },
+  {
+   "fieldname": "default_priority_rule",
+   "fieldtype": "Select",
+   "label": "Regra de Priorização Padrão",
+   "options": "Data de Entrega (EDD)\nPrioridade do Pedido\nMenor Tempo de Processamento (SPT)\nMenor Setup",
+   "default": "Data de Entrega (EDD)"
+  },
+  {
+   "fieldname": "col_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "consider_setup_time",
+   "fieldtype": "Check",
+   "label": "Considerar Tempo de Setup",
+   "default": "1"
+  },
+  {
+   "fieldname": "consider_transfer_time",
+   "fieldtype": "Check",
+   "label": "Considerar Tempo de Transferência entre Operações",
+   "default": "1"
+  },
+  {
+   "fieldname": "default_transfer_mins",
+   "fieldtype": "Float",
+   "label": "Tempo Padrão de Transferência (Minutos)",
+   "default": "15"
+  },
+  {
+   "fieldname": "allow_alternative_workstations",
+   "fieldtype": "Check",
+   "label": "Permitir Postos Alternativos em Gargalo",
+   "default": "1"
+  },
+  {
+   "fieldname": "sec_thresholds",
+   "fieldtype": "Section Break",
+   "label": "Gargalos e Limiares de Carga"
+  },
+  {
+   "fieldname": "overload_threshold_pct",
+   "fieldtype": "Float",
+   "label": "Limiar de Sobrecarga / Gargalo (%)",
+   "default": "100.0"
+  },
+  {
+   "fieldname": "col_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "auto_update_job_cards",
+   "fieldtype": "Check",
+   "label": "Atualizar Job Cards ao Efetivar Ticket",
+   "default": "1"
+  },
+  {
+   "fieldname": "auto_update_work_orders",
+   "fieldtype": "Check",
+   "label": "Atualizar Datas da Work Order ao Efetivar",
+   "default": "1"
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-13 02:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ERPZ APS",
+ "name": "APS Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "issingle": 1
+}

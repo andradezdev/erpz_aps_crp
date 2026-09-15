@@ -1,0 +1,113 @@
+{
+ "actions": [],
+ "creation": "2026-09-13 02:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "workstation",
+  "block_type",
+  "from_datetime",
+  "to_datetime",
+  "col_1",
+  "reason",
+  "is_active"
+ ],
+ "fields": [
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "Posto de Trabalho",
+   "options": "Workstation",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "block_type",
+   "fieldtype": "Select",
+   "label": "Tipo de Indisponibilidade",
+   "options": "Manutenção Preventiva\nManutenção Corretiva / Quebra\nFalta de Operador\nFalta de Ferramenta / Utilidade\nFérias Coletivas / Parada Programada\nOutro",
+   "default": "Manutenção Preventiva",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "from_datetime",
+   "fieldtype": "Datetime",
+   "label": "Início da Indisponibilidade",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "to_datetime",
+   "fieldtype": "Datetime",
+   "label": "Fim da Indisponibilidade",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "col_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Motivo / Descrição"
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Bloqueio Ativo",
+   "default": "1",
+   "in_list_view": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-13 02:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ERPZ APS",
+ "name": "APS Resource Block",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "autoname": "format:BLK-{workstation}-{#####}"
+}

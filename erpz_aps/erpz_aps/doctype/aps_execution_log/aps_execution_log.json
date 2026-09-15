@@ -1,0 +1,183 @@
+{
+ "actions": [],
+ "creation": "2026-09-13 02:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "aps_ticket",
+  "mrp_ticket",
+  "work_order",
+  "operation",
+  "workstation",
+  "operator",
+  "log_type",
+  "event_timestamp",
+  "col_qtys",
+  "qty_completed",
+  "qty_rejected",
+  "planned_start",
+  "planned_end",
+  "actual_duration_mins",
+  "planned_duration_mins",
+  "time_deviation_mins",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "aps_ticket",
+   "fieldtype": "Link",
+   "label": "Ticket APS",
+   "options": "APS Ticket",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "mrp_ticket",
+   "fieldtype": "Link",
+   "label": "Ticket MRP",
+   "options": "MRP Ticket",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "Ordem de Produção",
+   "options": "Work Order",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "operation",
+   "fieldtype": "Data",
+   "label": "Operação",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "Posto",
+   "options": "Workstation",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "operator",
+   "fieldtype": "Link",
+   "label": "Operador",
+   "options": "User",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "log_type",
+   "fieldtype": "Select",
+   "label": "Tipo de Registro",
+   "options": "Início\nPausa\nRetomada\nTérmino\nOcorrência / Parada\nDesvio de Sequência",
+   "default": "Término",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "event_timestamp",
+   "fieldtype": "Datetime",
+   "label": "Data/Hora",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "col_qtys",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "qty_completed",
+   "fieldtype": "Float",
+   "label": "Qtd Apontada",
+   "default": "0.0",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "qty_rejected",
+   "fieldtype": "Float",
+   "label": "Refugos / Perdas",
+   "default": "0.0"
+  },
+  {
+   "fieldname": "planned_start",
+   "fieldtype": "Datetime",
+   "label": "Início Planejado"
+  },
+  {
+   "fieldname": "planned_end",
+   "fieldtype": "Datetime",
+   "label": "Término Planejado"
+  },
+  {
+   "fieldname": "actual_duration_mins",
+   "fieldtype": "Float",
+   "label": "Duração Real (min)"
+  },
+  {
+   "fieldname": "planned_duration_mins",
+   "fieldtype": "Float",
+   "label": "Duração Planejada (min)"
+  },
+  {
+   "fieldname": "time_deviation_mins",
+   "fieldtype": "Float",
+   "label": "Desvio de Tempo (min)"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Observações / Ocorrências"
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-13 02:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ERPZ APS",
+ "name": "APS Execution Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

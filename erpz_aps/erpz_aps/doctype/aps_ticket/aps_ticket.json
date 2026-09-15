@@ -1,0 +1,302 @@
+{
+ "actions": [],
+ "creation": "2026-09-13 02:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "title",
+  "status",
+  "sec_scope",
+  "company",
+  "mrp_ticket",
+  "horizon_start",
+  "horizon_end",
+  "col_params",
+  "scheduling_direction",
+  "finite_capacity",
+  "priority_strategy",
+  "consider_alternatives",
+  "consider_materials_from_mrp",
+  "sec_filters",
+  "work_order_filter",
+  "item_filter",
+  "workstation_filter",
+  "sec_kpis",
+  "total_orders",
+  "total_operations",
+  "total_scheduled_hours",
+  "average_utilization_pct",
+  "total_bottlenecks",
+  "delayed_orders_count",
+  "col_audit",
+  "calculated_on",
+  "calculated_by",
+  "approved_on",
+  "approved_by",
+  "executed_on",
+  "executed_by",
+  "execution_time_seconds"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Série",
+   "options": "APS-.YYYY.-.#####",
+   "default": "APS-.YYYY.-.#####",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Descrição do Cenário",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Situação",
+   "options": "Em Preparação\nProcessando\nCalculado\nAjustado\nEm Análise\nAprovado\nEfetivado\nCancelado\nCom Inconsistências",
+   "default": "Em Preparação",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sec_scope",
+   "fieldtype": "Section Break",
+   "label": "Escopo e Integração"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Empresa",
+   "options": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "mrp_ticket",
+   "fieldtype": "Link",
+   "label": "Ticket MRP de Origem",
+   "options": "MRP Ticket",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "horizon_start",
+   "fieldtype": "Datetime",
+   "label": "Data/Hora Inicial",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "horizon_end",
+   "fieldtype": "Datetime",
+   "label": "Data/Hora Final",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "col_params",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "scheduling_direction",
+   "fieldtype": "Select",
+   "label": "Direção do Sequenciamento",
+   "options": "Para Frente (Forward)\nPara Trás (Backward)",
+   "default": "Para Frente (Forward)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "finite_capacity",
+   "fieldtype": "Check",
+   "label": "Considerar Capacidade Finita",
+   "default": "1"
+  },
+  {
+   "fieldname": "priority_strategy",
+   "fieldtype": "Select",
+   "label": "Estratégia de Prioridade",
+   "options": "Data de Entrega (EDD)\nPrioridade do Pedido\nMenor Tempo de Processamento\nMenor Setup",
+   "default": "Data de Entrega (EDD)"
+  },
+  {
+   "fieldname": "consider_alternatives",
+   "fieldtype": "Check",
+   "label": "Permitir Postos Alternativos",
+   "default": "1"
+  },
+  {
+   "fieldname": "consider_materials_from_mrp",
+   "fieldtype": "Check",
+   "label": "Restringir Início à Chegada de Materiais (MRP)",
+   "default": "1"
+  },
+  {
+   "fieldname": "sec_filters",
+   "fieldtype": "Section Break",
+   "label": "Filtros Opcionais de Ordens"
+  },
+  {
+   "fieldname": "work_order_filter",
+   "fieldtype": "Link",
+   "label": "Ordem de Produção Específica",
+   "options": "Work Order"
+  },
+  {
+   "fieldname": "item_filter",
+   "fieldtype": "Link",
+   "label": "Item Específico",
+   "options": "Item"
+  },
+  {
+   "fieldname": "workstation_filter",
+   "fieldtype": "Link",
+   "label": "Posto Específico",
+   "options": "Workstation"
+  },
+  {
+   "fieldname": "sec_kpis",
+   "fieldtype": "Section Break",
+   "label": "Indicadores do Cenário (KPIs)"
+  },
+  {
+   "fieldname": "total_orders",
+   "fieldtype": "Int",
+   "label": "Total OPs Programadas",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_operations",
+   "fieldtype": "Int",
+   "label": "Total Operações Sequenciadas",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_scheduled_hours",
+   "fieldtype": "Float",
+   "label": "Carga Total Programada (h)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "average_utilization_pct",
+   "fieldtype": "Float",
+   "label": "Utilização Média dos Recursos (%)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_bottlenecks",
+   "fieldtype": "Int",
+   "label": "Postos em Sobrecarga / Gargalos",
+   "read_only": 1
+  },
+  {
+   "fieldname": "delayed_orders_count",
+   "fieldtype": "Int",
+   "label": "Ordens com Previsão de Atraso",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_audit",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "calculated_on",
+   "fieldtype": "Datetime",
+   "label": "Data/Hora Cálculo",
+   "read_only": 1
+  },
+  {
+   "fieldname": "calculated_by",
+   "fieldtype": "Link",
+   "label": "Calculado Por",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "approved_on",
+   "fieldtype": "Datetime",
+   "label": "Data/Hora Aprovação",
+   "read_only": 1
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Aprovado Por",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "executed_on",
+   "fieldtype": "Datetime",
+   "label": "Data/Hora Efetivação",
+   "read_only": 1
+  },
+  {
+   "fieldname": "executed_by",
+   "fieldtype": "Link",
+   "label": "Efetivado Por",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "execution_time_seconds",
+   "fieldtype": "Float",
+   "label": "Tempo de Processamento (s)",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-13 02:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ERPZ APS",
+ "name": "APS Ticket",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "autoname": "naming_series:"
+}

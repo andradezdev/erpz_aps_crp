@@ -1,0 +1,148 @@
+{
+ "actions": [],
+ "creation": "2026-09-13 02:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "aps_ticket",
+  "work_order",
+  "operation",
+  "moved_by",
+  "moved_at",
+  "previous_workstation",
+  "new_workstation",
+  "previous_start",
+  "new_start",
+  "previous_end",
+  "new_end",
+  "impacted_operations_count",
+  "details"
+ ],
+ "fields": [
+  {
+   "fieldname": "aps_ticket",
+   "fieldtype": "Link",
+   "label": "Ticket APS",
+   "options": "APS Ticket",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "Ordem de Produção",
+   "options": "Work Order",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "operation",
+   "fieldtype": "Data",
+   "label": "Operação",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "moved_by",
+   "fieldtype": "Link",
+   "label": "Ajustado Por",
+   "options": "User",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "moved_at",
+   "fieldtype": "Datetime",
+   "label": "Data/Hora Ajuste",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "previous_workstation",
+   "fieldtype": "Link",
+   "label": "Posto Anterior",
+   "options": "Workstation"
+  },
+  {
+   "fieldname": "new_workstation",
+   "fieldtype": "Link",
+   "label": "Novo Posto",
+   "options": "Workstation"
+  },
+  {
+   "fieldname": "previous_start",
+   "fieldtype": "Datetime",
+   "label": "Início Anterior"
+  },
+  {
+   "fieldname": "new_start",
+   "fieldtype": "Datetime",
+   "label": "Novo Início"
+  },
+  {
+   "fieldname": "previous_end",
+   "fieldtype": "Datetime",
+   "label": "Fim Anterior"
+  },
+  {
+   "fieldname": "new_end",
+   "fieldtype": "Datetime",
+   "label": "Novo Fim"
+  },
+  {
+   "fieldname": "impacted_operations_count",
+   "fieldtype": "Int",
+   "label": "Operações Recalculadas na Cadeia",
+   "default": "0"
+  },
+  {
+   "fieldname": "details",
+   "fieldtype": "Text",
+   "label": "Detalhes da Propagação"
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-13 02:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ERPZ APS",
+ "name": "APS Adjustment History",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

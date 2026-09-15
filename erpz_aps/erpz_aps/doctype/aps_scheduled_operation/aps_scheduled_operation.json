@@ -1,0 +1,247 @@
+{
+ "actions": [],
+ "creation": "2026-09-13 02:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "aps_ticket",
+  "work_order",
+  "mrp_ticket",
+  "production_item",
+  "item_name",
+  "operation",
+  "sequence_id",
+  "workstation",
+  "is_alternative_used",
+  "original_workstation",
+  "col_dates",
+  "planned_start_time",
+  "planned_end_time",
+  "duration_mins",
+  "setup_mins",
+  "runtime_mins",
+  "qty_to_produce",
+  "predecessor_operation",
+  "predecessor_end_time",
+  "is_fixed",
+  "is_adjusted",
+  "has_conflict",
+  "conflict_reason",
+  "status",
+  "delay_hours"
+ ],
+ "fields": [
+  {
+   "fieldname": "aps_ticket",
+   "fieldtype": "Link",
+   "label": "Ticket APS",
+   "options": "APS Ticket",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "Ordem de Produção",
+   "options": "Work Order",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "mrp_ticket",
+   "fieldtype": "Link",
+   "label": "Ticket MRP",
+   "options": "MRP Ticket",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "production_item",
+   "fieldtype": "Link",
+   "label": "Item",
+   "options": "Item",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Descrição"
+  },
+  {
+   "fieldname": "operation",
+   "fieldtype": "Data",
+   "label": "Operação",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sequence_id",
+   "fieldtype": "Int",
+   "label": "Seq Roteiro",
+   "default": "10",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "Posto Alocado",
+   "options": "Workstation",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "is_alternative_used",
+   "fieldtype": "Check",
+   "label": "Posto Alternativo?",
+   "default": "0"
+  },
+  {
+   "fieldname": "original_workstation",
+   "fieldtype": "Link",
+   "label": "Posto Titular",
+   "options": "Workstation"
+  },
+  {
+   "fieldname": "col_dates",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "planned_start_time",
+   "fieldtype": "Datetime",
+   "label": "Início Programado",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "planned_end_time",
+   "fieldtype": "Datetime",
+   "label": "Término Programado",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "duration_mins",
+   "fieldtype": "Float",
+   "label": "Duração Total (min)",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "setup_mins",
+   "fieldtype": "Float",
+   "label": "Setup (min)",
+   "default": "0"
+  },
+  {
+   "fieldname": "runtime_mins",
+   "fieldtype": "Float",
+   "label": "Processamento (min)",
+   "default": "0"
+  },
+  {
+   "fieldname": "qty_to_produce",
+   "fieldtype": "Float",
+   "label": "Qtd da Ordem",
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "predecessor_operation",
+   "fieldtype": "Data",
+   "label": "Operação Predecessora"
+  },
+  {
+   "fieldname": "predecessor_end_time",
+   "fieldtype": "Datetime",
+   "label": "Fim Predecessora"
+  },
+  {
+   "fieldname": "is_fixed",
+   "fieldtype": "Check",
+   "label": "Operação Fixada (Sacramentada)",
+   "default": "0"
+  },
+  {
+   "fieldname": "is_adjusted",
+   "fieldtype": "Check",
+   "label": "Ajustado no Gantt",
+   "default": "0"
+  },
+  {
+   "fieldname": "has_conflict",
+   "fieldtype": "Check",
+   "label": "Possui Conflito / Gargalo",
+   "default": "0"
+  },
+  {
+   "fieldname": "conflict_reason",
+   "fieldtype": "Small Text",
+   "label": "Motivo do Conflito"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Situação",
+   "options": "Programada\nEm Execução\nPausada\nConcluída\nAtrasada\nCancelada",
+   "default": "Programada",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "delay_hours",
+   "fieldtype": "Float",
+   "label": "Atraso (horas)",
+   "default": "0.0"
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-13 02:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ERPZ APS",
+ "name": "APS Scheduled Operation",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
