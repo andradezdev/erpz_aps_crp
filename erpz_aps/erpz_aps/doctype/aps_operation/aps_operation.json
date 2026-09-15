@@ -1,0 +1,231 @@
+{
+ "actions": [],
+ "autoname": "field:operation_code",
+ "creation": "2026-09-13 03:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "operation_code",
+  "operation_name",
+  "sequence_id",
+  "item_code",
+  "item_name",
+  "is_active",
+  "sec_resource",
+  "workstation",
+  "workstation_type",
+  "col_res",
+  "holiday_list",
+  "alternative_workstation",
+  "sec_metrics",
+  "batch_qty",
+  "cycle_time_mins",
+  "time_per_unit_mins",
+  "col_metrics",
+  "setup_time_mins",
+  "transfer_time_mins",
+  "sec_overlap",
+  "overlap_pct",
+  "allow_wo_overlap_pct",
+  "description"
+ ],
+ "fields": [
+  {
+   "fieldname": "operation_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Código da Operação (Sequenciador)",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "operation_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Nome da Operação"
+  },
+  {
+   "default": "10",
+   "fieldname": "sequence_id",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Sequência Numérica"
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item / Produto Aplicável (Opcional)",
+   "options": "Item"
+  },
+  {
+   "fetch_from": "item_code.item_name",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Descrição do Item",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Ativo"
+  },
+  {
+   "fieldname": "sec_resource",
+   "fieldtype": "Section Break",
+   "label": "Recurso Produtivo (Estação de Trabalho)"
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Recurso (Estação de Trabalho)",
+   "options": "Workstation",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "workstation.workstation_type",
+   "fieldname": "workstation_type",
+   "fieldtype": "Link",
+   "label": "Tipo de Posto",
+   "options": "Workstation Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_res",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "workstation.holiday_list",
+   "fieldname": "holiday_list",
+   "fieldtype": "Link",
+   "label": "Calendário de Feriados",
+   "options": "Holiday List",
+   "read_only": 1
+  },
+  {
+   "fieldname": "alternative_workstation",
+   "fieldtype": "Link",
+   "label": "Recurso Alternativo (Opcional)",
+   "options": "Workstation"
+  },
+  {
+   "fieldname": "sec_metrics",
+   "fieldtype": "Section Break",
+   "label": "Métricas de Tempo Produtivo (CRP / APS)"
+  },
+  {
+   "default": "5.0",
+   "fieldname": "batch_qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Quantidade de Referência (Peças)",
+   "reqd": 1
+  },
+  {
+   "default": "15.0",
+   "fieldname": "cycle_time_mins",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Tempo para Qtd Referência (Minutos)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "time_per_unit_mins",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Tempo Unitário Calculado (Min/Peça)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_metrics",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0.0",
+   "fieldname": "setup_time_mins",
+   "fieldtype": "Float",
+   "label": "Tempo de Setup (Minutos)"
+  },
+  {
+   "default": "15.0",
+   "fieldname": "transfer_time_mins",
+   "fieldtype": "Float",
+   "label": "Tempo de Transferência / Espera (Minutos)"
+  },
+  {
+   "fieldname": "sec_overlap",
+   "fieldtype": "Section Break",
+   "label": "Regras de Sobreposição de Operações (Overlap %)"
+  },
+  {
+   "default": "0.0",
+   "fieldname": "overlap_pct",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Sobreposição com Próxima Operação (%)"
+  },
+  {
+   "default": "0.0",
+   "fieldname": "allow_wo_overlap_pct",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Sobreposição com Outra OP (%)"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Observações e Instruções Técnicas"
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-13 03:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ERPZ APS",
+ "name": "APS Operation",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

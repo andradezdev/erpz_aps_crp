@@ -127,6 +127,18 @@
   {
    "child": 1,
    "collapsible": 1,
+   "icon": "tool",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Opera\u00e7\u00f5es do Processo (APS)",
+   "link_to": "APS Operation",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 1,
+   "collapsible": 1,
    "icon": "factory",
    "indent": 0,
    "keep_closed": 0,
@@ -149,7 +161,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-15 12:14:29.102085",
+ "modified": "2026-09-15 16:02:44.091768",
  "modified_by": "Administrator",
  "module": "ERPZ APS",
  "name": "ERPZ APS",

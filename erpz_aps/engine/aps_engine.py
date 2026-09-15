@@ -147,6 +147,13 @@ class APSEngine:
         horizon_start = get_datetime(self.ticket.horizon_start or now_datetime())
         horizon_end = get_datetime(self.ticket.horizon_end or (horizon_start + timedelta(days=30)))
 
+        # Pre-load custom APS Operations
+        aps_op_records = frappe.get_all(
+            "APS Operation",
+            filters={"is_active": 1},
+            fields=["name", "operation_code", "operation_name", "sequence_id", "item_code", "workstation", "batch_qty", "cycle_time_mins", "setup_time_mins", "transfer_time_mins", "overlap_pct", "allow_wo_overlap_pct"]
+        )
+
         for wo in self.work_orders:
             wo_name = wo.name
             qty = flt(wo.qty) - flt(wo.produced_qty)
@@ -162,7 +169,6 @@ class APSEngine:
             )
 
             if not ops and wo.bom_no:
-                # Load from BOM Operations
                 ops = frappe.get_all(
                     "BOM Operation",
                     filters={"parent": wo.bom_no},
@@ -173,34 +179,77 @@ class APSEngine:
                     o["sequence_id"] = (i + 1) * 10
 
             if not ops:
-                # If no operations defined, create a default operation using primary workstation
-                default_ws = list(self.workstations.keys())[0] if self.workstations else "Posto Geral"
-                ops = [{
-                    "operation": "Produção Geral",
-                    "workstation": default_ws,
-                    "time_in_mins": 60.0,
-                    "sequence_id": 10
-                }]
+                # If no operations defined, check if custom APS Operation matches the item
+                custom_item_ops = [ao for ao in aps_op_records if ao.item_code == wo.production_item]
+                if custom_item_ops:
+                    ops = [{
+                        "operation": ao.operation_name or ao.operation_code,
+                        "workstation": ao.workstation,
+                        "time_in_mins": (ao.cycle_time_mins / max(1.0, ao.batch_qty)),
+                        "sequence_id": ao.sequence_id or 10
+                    } for ao in custom_item_ops]
+                else:
+                    default_ws = list(self.workstations.keys())[0] if self.workstations else "Posto Geral"
+                    ops = [{
+                        "operation": "Produção Geral",
+                        "workstation": default_ws,
+                        "time_in_mins": 60.0,
+                        "sequence_id": 10
+                    }]
 
             # Order precedence cursor
             wo_cursor = max(horizon_start, get_datetime(wo.planned_start_date or horizon_start))
             prev_op_name = None
+            prev_op_start = None
             prev_op_end = None
+            prev_op_overlap_pct = 0.0
 
             for op in ops:
                 ws_name = op.get("workstation")
                 if not ws_name or ws_name not in self.workstations:
                     ws_name = list(self.workstations.keys())[0] if self.workstations else "Posto 01"
 
-                # Calculate duration
-                setup_mins = 15.0 if self.settings.consider_setup_time else 0.0
-                run_per_unit = flt(op.get("time_in_mins") or 10.0)
-                efficiency = self.workstations.get(ws_name, {}).get("efficiency", 1.0)
-                total_duration_mins = setup_mins + ((qty * run_per_unit) / max(0.1, efficiency))
+                # Check custom APS Operation for reference metrics and overlap %
+                matched_aps_op = None
+                for ao in aps_op_records:
+                    if ao.item_code == wo.production_item and (ao.sequence_id == op.get("sequence_id") or ao.operation_name == op.get("operation") or ao.operation_code == op.get("operation")):
+                        matched_aps_op = ao
+                        break
+                if not matched_aps_op:
+                    for ao in aps_op_records:
+                        if not ao.item_code and (ao.operation_name == op.get("operation") or ao.operation_code == op.get("operation") or ao.sequence_id == op.get("sequence_id")):
+                            matched_aps_op = ao
+                            break
 
-                # Earliest start = maximum of (predecessor end + transfer buffer, horizon start)
-                transfer_buffer = 15.0 if self.settings.consider_transfer_time and prev_op_end else 0.0
-                earliest_start = add_working_minutes(prev_op_end, transfer_buffer) if prev_op_end else wo_cursor
+                if matched_aps_op:
+                    ws_name = matched_aps_op.workstation or ws_name
+                    setup_mins = flt(matched_aps_op.setup_time_mins or 0.0)
+                    batch_ref = flt(matched_aps_op.batch_qty or 1.0)
+                    cycle_ref = flt(matched_aps_op.cycle_time_mins or 10.0)
+                    unit_time_mins = cycle_ref / max(0.001, batch_ref)
+                    total_run_mins = qty * unit_time_mins
+                    overlap_pct = flt(matched_aps_op.overlap_pct or 0.0)
+                    transfer_buffer = flt(matched_aps_op.transfer_time_mins or 15.0)
+                else:
+                    setup_mins = 15.0 if self.settings.consider_setup_time else 0.0
+                    run_per_unit = flt(op.get("time_in_mins") or 10.0)
+                    total_run_mins = qty * run_per_unit
+                    overlap_pct = 0.0
+                    transfer_buffer = 15.0 if self.settings.consider_transfer_time and prev_op_end else 0.0
+
+                efficiency = self.workstations.get(ws_name, {}).get("efficiency", 1.0)
+                total_duration_mins = setup_mins + (total_run_mins / max(0.1, efficiency))
+
+                # Earliest start respecting Precedence & Overlap
+                if prev_op_end and prev_op_start:
+                    if prev_op_overlap_pct > 0:
+                        overlap_fraction = 1.0 - (prev_op_overlap_pct / 100.0)
+                        predecessor_ready = prev_op_start + ((prev_op_end - prev_op_start) * overlap_fraction)
+                        earliest_start = add_working_minutes(predecessor_ready, transfer_buffer, ws_name, wo.company)
+                    else:
+                        earliest_start = add_working_minutes(prev_op_end, transfer_buffer, ws_name, wo.company)
+                else:
+                    earliest_start = wo_cursor
 
                 # Finite Capacity: Find slot on workstation
                 actual_start, actual_end = self.find_finite_slot(ws_name, earliest_start, total_duration_mins)
@@ -213,7 +262,6 @@ class APSEngine:
                         delay_hours = round((actual_end - due_dt).total_seconds() / 3600.0, 1)
 
                 status = "Atrasada" if delay_hours > 0 else "Programada"
-
                 item_name = frappe.db.get_value("Item", wo.production_item, "item_name") or wo.production_item
 
                 sched_op = {
@@ -251,7 +299,9 @@ class APSEngine:
 
                 # Update cursor for next sequential operation
                 prev_op_name = f"{op.get('operation')} (Seq {op.get('sequence_id')})"
+                prev_op_start = actual_start
                 prev_op_end = actual_end
+                prev_op_overlap_pct = overlap_pct
 
     def find_finite_slot(self, workstation, earliest_start, duration_mins):
         """
