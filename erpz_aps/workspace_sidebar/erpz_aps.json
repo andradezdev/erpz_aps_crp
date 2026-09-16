@@ -130,8 +130,8 @@
    "icon": "tool",
    "indent": 0,
    "keep_closed": 0,
-   "label": "Opera\u00e7\u00f5es do Processo (APS)",
-   "link_to": "APS Operation",
+   "label": "Opera\u00e7\u00f5es do Processo",
+   "link_to": "APS Product Routing",
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"
@@ -161,7 +161,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-09-16 08:23:43.478019",
+ "modified": "2026-09-16 08:56:57.703154",
  "modified_by": "Administrator",
  "module": "ERPZ APS",
  "name": "ERPZ APS",

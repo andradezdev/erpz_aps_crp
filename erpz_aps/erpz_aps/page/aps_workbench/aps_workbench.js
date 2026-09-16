@@ -81,16 +81,6 @@ class APSWorkbench {
 			me.execute_scenario();
 		}, { btn_class: "btn-danger" });
 
-		// Button: Roteiro dos Produtos
-		this.page.add_button(__("Roteiros Produtivos"), function() {
-			frappe.set_route("List", "APS Product Routing");
-		});
-
-		// Button: Importar Roteiro (Excel)
-		this.page.add_button(__("Importar Roteiro (Excel)"), function() {
-			me.show_import_routing_dialog();
-		});
-
 		// Button: Ver Ticket MRP
 		this.btn_mrp = this.page.add_button(__("Ver Ticket MRP"), function() {
 			if (me.current_mrp_ticket) {

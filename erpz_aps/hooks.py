@@ -8,3 +8,8 @@ app_license = "mit"
 # Installation & Migrations
 after_install = "erpz_aps.setup.after_install"
 after_migrate = "erpz_aps.setup.after_migrate"
+
+# DocType List JS
+doctype_list_js = {
+	"APS Product Routing": "erpz_aps/doctype/aps_product_routing/aps_product_routing_list.js"
+}

@@ -114,9 +114,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Operações do Processo (APS)",
+   "label": "Operações do Processo",
    "link_count": 0,
-   "link_to": "APS Operation",
+   "link_to": "APS Product Routing",
    "link_type": "DocType",
    "onboard": 1,
    "type": "Link"

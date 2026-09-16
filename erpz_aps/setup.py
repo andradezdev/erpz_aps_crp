@@ -94,7 +94,7 @@ def setup_aps_desktop_and_sidebar():
         {"label": "Histórico de Ajustes Gantt", "link_to": "APS Adjustment History", "link_type": "DocType", "type": "Link", "child": 1, "icon": "scroll-text", "idx": 7},
         {"label": "Cadastros e Parâmetros", "type": "Section Break", "icon": "settings", "idx": 8},
         {"label": "Parâmetros do APS", "link_to": "APS Settings", "link_type": "DocType", "type": "Link", "child": 1, "icon": "setting", "idx": 9},
-        {"label": "Operações do Processo (APS)", "link_to": "APS Operation", "link_type": "DocType", "type": "Link", "child": 1, "icon": "tool", "idx": 10},
+        {"label": "Operações do Processo", "link_to": "APS Product Routing", "link_type": "DocType", "type": "Link", "child": 1, "icon": "tool", "idx": 10},
         {"label": "Postos e Recursos Produtivos", "link_to": "APS Resource", "link_type": "DocType", "type": "Link", "child": 1, "icon": "factory", "idx": 11},
         {"label": "Bloqueios e Manutenções", "link_to": "APS Resource Block", "link_type": "DocType", "type": "Link", "child": 1, "icon": "tool", "idx": 12}
     ]
