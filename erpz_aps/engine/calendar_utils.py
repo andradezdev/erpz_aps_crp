@@ -51,118 +51,190 @@ def get_workstation_holidays(workstation, company=None):
     """, (holiday_list,))
     return set(getdate(h) for h in holidays)
 
-def is_workstation_blocked(workstation, check_datetime, blocks_list=None):
+def get_active_workstation_blocks(workstation):
     """
-    Checks if a workstation has an active block at check_datetime:
-    - Recurring weekend block
-    - Permanent / continuous block
-    - Specific interval block
+    Fetches all active maintenance and breakdown blocks for this workstation.
     """
+    if not workstation:
+        return []
+
+    return frappe.get_all(
+        "APS Resource Block",
+        filters={"workstation": workstation, "is_active": 1},
+        fields=["name", "block_type", "recurrence", "from_datetime", "to_datetime", "is_weekend_block"]
+    )
+
+def is_workstation_blocked(workstation, check_datetime):
+    """Checks if check_datetime falls inside an active block for workstation."""
+    blocks = get_active_workstation_blocks(workstation)
     dt = get_datetime(check_datetime)
-    is_weekend = dt.weekday() in (5, 6)
-
-    # 1. In-memory check if blocks_list provided
-    if blocks_list is not None:
-        for b in blocks_list:
-            if b.get("workstation") != workstation or not b.get("is_active", 1):
-                continue
-            if (b.get("is_weekend_block") or b.get("recurrence") == "Todos os Finais de Semana (Sábados e Domingos)" or b.get("block_type") == "Indisponibilidade de Final de Semana") and is_weekend:
+    for b in blocks:
+        if b.get("from_datetime") and b.get("to_datetime"):
+            if get_datetime(b["from_datetime"]) <= dt <= get_datetime(b["to_datetime"]):
                 return True
-            if (b.get("recurrence") == "Indisponibilidade Contínua / Indefinida" or not b.get("to_datetime")) and b.get("from_datetime"):
-                if dt >= get_datetime(b["from_datetime"]):
-                    return True
+    return False
+
+def get_effective_workstation_start(workstation, desired_start, company=None):
+    """
+    Snaps desired_start out of non-working hours, lunch breaks, weekends, and active maintenance blocks.
+    Guarantees the operation begins at a moment when the machine is genuinely available.
+    """
+    current = get_datetime(desired_start)
+    windows = get_workstation_working_intervals(workstation)
+    holidays = get_workstation_holidays(workstation, company) if workstation else set()
+    weekend_allowed = is_weekend_work_allowed(workstation) if workstation else False
+    blocks = get_active_workstation_blocks(workstation)
+
+    first_window_start = windows[0][0]
+    last_window_end = windows[-1][1]
+
+    loop_guard = 0
+    while loop_guard < 500:
+        loop_guard += 1
+        is_weekend = current.weekday() in (5, 6)
+
+        # 1. Skip Weekend & Holidays
+        if (is_weekend and not weekend_allowed) or current.date() in holidays:
+            current = datetime.combine(current.date() + timedelta(days=1), first_window_start)
+            continue
+
+        # 2. Check if inside an active maintenance block
+        in_block_end = None
+        for b in blocks:
+            if b.get("is_weekend_block") and is_weekend:
+                in_block_end = datetime.combine(current.date() + timedelta(days=1), first_window_start)
+                break
             if b.get("from_datetime") and b.get("to_datetime"):
-                if get_datetime(b["from_datetime"]) <= dt <= get_datetime(b["to_datetime"]):
-                    return True
-        return False
+                b_from = get_datetime(b["from_datetime"])
+                b_to = get_datetime(b["to_datetime"])
+                if b_from <= current < b_to:
+                    in_block_end = b_to
+                    break
 
-    # 2. Database check
-    if is_weekend:
-        has_weekend_block = frappe.db.sql("""
-            SELECT name FROM `tabAPS Resource Block`
-            WHERE workstation = %s AND is_active = 1
-              AND (is_weekend_block = 1 OR recurrence = 'Todos os Finais de Semana (Sábados e Domingos)' OR block_type = 'Indisponibilidade de Final de Semana')
-            LIMIT 1
-        """, (workstation,))
-        if has_weekend_block:
-            return True
+        if in_block_end:
+            current = in_block_end
+            continue
 
-    has_block = frappe.db.sql("""
-        SELECT name FROM `tabAPS Resource Block`
-        WHERE workstation = %s AND is_active = 1
-          AND (
-            (from_datetime <= %s AND (to_datetime >= %s OR to_datetime IS NULL OR recurrence = 'Indisponibilidade Contínua / Indefinida'))
-          )
-        LIMIT 1
-    """, (workstation, dt, dt))
-    return bool(has_block)
+        cur_time = current.time()
+
+        # 3. Before first window of the day
+        if cur_time < first_window_start:
+            current = datetime.combine(current.date(), first_window_start)
+            continue
+
+        # 4. After last window of the day
+        if cur_time >= last_window_end:
+            current = datetime.combine(current.date() + timedelta(days=1), first_window_start)
+            continue
+
+        # 5. During break between windows (e.g. lunch)
+        in_break = False
+        for idx in range(len(windows) - 1):
+            if windows[idx][1] <= cur_time < windows[idx + 1][0]:
+                current = datetime.combine(current.date(), windows[idx + 1][0])
+                in_break = True
+                break
+        if in_break:
+            continue
+
+        break
+
+    return current
 
 def add_working_minutes(start_dt, minutes_to_add, workstation=None, company=None):
     """
-    Advances start_dt by minutes_to_add, strictly respecting:
-    1. Workstation working shifts (from tabWorkstation Working Hour).
-    2. Workstation weekend policy (allow_weekend_work in APS Resource).
-    3. Workstation holidays (from Workstation.holiday_list).
-    4. Maintenance / Breakdown blocks (from tabAPS Resource Block).
+    Advances start_dt by minutes_to_add, extending across:
+    1. Lunch breaks and non-working hours.
+    2. Weekends (unless allow_weekend_work is enabled).
+    3. Maintenance, breakdown, and unavailability blocks (pauses during block, resumes after block).
+    Never enters infinite loops.
     """
-    current = get_datetime(start_dt)
+    current = get_effective_workstation_start(workstation, start_dt, company)
     remaining_mins = max(1.0, float(minutes_to_add))
     
     windows = get_workstation_working_intervals(workstation)
     holidays = get_workstation_holidays(workstation, company) if workstation else set()
     weekend_allowed = is_weekend_work_allowed(workstation) if workstation else False
+    blocks = get_active_workstation_blocks(workstation)
 
     first_window_start = windows[0][0]
     last_window_end = windows[-1][1]
 
-    while remaining_mins > 0:
-        # 1. Skip weekend if not allowed, or holidays
-        is_weekend = current.weekday() in (5, 6)
-        while (is_weekend and not weekend_allowed) or current.date() in holidays:
-            current = datetime.combine(current.date() + timedelta(days=1), first_window_start)
-            is_weekend = current.weekday() in (5, 6)
+    loop_count = 0
+    max_loops = 2000
 
-        # 2. Skip active maintenance/breakdown blocks
-        if workstation and is_workstation_blocked(workstation, current):
-            # Fetch active block end
-            block_rows = frappe.db.sql("""
-                SELECT to_datetime, recurrence FROM `tabAPS Resource Block`
-                WHERE workstation = %s AND is_active = 1 AND from_datetime <= %s
-                ORDER BY to_datetime DESC LIMIT 1
-            """, (workstation, current), as_dict=True)
-            if block_rows and block_rows[0].to_datetime:
-                current = get_datetime(block_rows[0].to_datetime)
-                continue
-            else:
-                # If continuous or weekend, advance to next day
-                current = datetime.combine(current.date() + timedelta(days=1), first_window_start)
-                continue
+    while remaining_mins > 0:
+        loop_count += 1
+        if loop_count > max_loops:
+            # Safety exit: advance remaining mins as calendar time to prevent system hang
+            current += timedelta(minutes=remaining_mins)
+            break
+
+        # 1. Skip weekend & holidays
+        is_weekend = current.weekday() in (5, 6)
+        if (is_weekend and not weekend_allowed) or current.date() in holidays:
+            current = datetime.combine(current.date() + timedelta(days=1), first_window_start)
+            continue
+
+        # 2. Check if current falls inside an active block
+        in_block_end = None
+        for b in blocks:
+            if b.get("is_weekend_block") and is_weekend:
+                in_block_end = datetime.combine(current.date() + timedelta(days=1), first_window_start)
+                break
+            if b.get("from_datetime") and b.get("to_datetime"):
+                b_from = get_datetime(b["from_datetime"])
+                b_to = get_datetime(b["to_datetime"])
+                if b_from <= current < b_to:
+                    in_block_end = b_to
+                    break
+
+        if in_block_end:
+            current = in_block_end
+            continue
 
         cur_time = current.time()
 
-        # Before first window of the day
+        # Before shift start
         if cur_time < first_window_start:
             current = datetime.combine(current.date(), first_window_start)
             cur_time = first_window_start
 
-        # After last window of the day -> advance to next day
+        # After shift end
         if cur_time >= last_window_end:
             current = datetime.combine(current.date() + timedelta(days=1), first_window_start)
             continue
 
-        # Find which working window we are in or advance to next window
+        # Find which working window we are in
         found_window = False
         for (w_start, w_end) in windows:
             if w_start <= cur_time < w_end:
                 window_end_dt = datetime.combine(current.date(), w_end)
-                available_mins = (window_end_dt - current).total_seconds() / 60.0
+
+                # Check if a block starts INSIDE this working window after current
+                next_block_start = None
+                for b in blocks:
+                    if b.get("from_datetime") and b.get("to_datetime"):
+                        b_from = get_datetime(b["from_datetime"])
+                        if current < b_from < window_end_dt:
+                            if next_block_start is None or b_from < next_block_start:
+                                next_block_start = b_from
+
+                effective_end_dt = next_block_start if next_block_start else window_end_dt
+                available_mins = (effective_end_dt - current).total_seconds() / 60.0
+
+                if available_mins <= 0:
+                    current = effective_end_dt
+                    found_window = True
+                    break
 
                 if remaining_mins <= available_mins:
                     current += timedelta(minutes=remaining_mins)
                     remaining_mins = 0
                 else:
                     remaining_mins -= available_mins
-                    current = window_end_dt
+                    current = effective_end_dt
+
                 found_window = True
                 break
             elif cur_time < w_start:

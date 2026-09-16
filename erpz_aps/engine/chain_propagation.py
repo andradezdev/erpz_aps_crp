@@ -4,7 +4,7 @@
 from datetime import datetime, timedelta
 import frappe
 from frappe.utils import get_datetime, now_datetime, flt
-from erpz_aps.engine.calendar_utils import add_working_minutes
+from erpz_aps.engine.calendar_utils import add_working_minutes, get_effective_workstation_start
 
 def propagate_operation_change(ticket_name, op_name, new_start_dt, new_workstation=None):
     """
@@ -41,8 +41,8 @@ def propagate_operation_change(ticket_name, op_name, new_start_dt, new_workstati
         target.workstation = new_workstation
         
     duration = flt(target.duration_mins or 30.0)
-    target.planned_start_time = new_start
-    target.planned_end_time = add_working_minutes(new_start, duration, target.workstation)
+    target.planned_start_time = get_effective_workstation_start(target.workstation, new_start)
+    target.planned_end_time = add_working_minutes(target.planned_start_time, duration, target.workstation)
     target.is_adjusted = 1
     target.adjustment_timestamp = now_datetime()
     target.has_conflict = 0
