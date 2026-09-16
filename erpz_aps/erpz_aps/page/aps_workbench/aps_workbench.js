@@ -163,10 +163,14 @@ class APSWorkbench {
 					<div class="aps-tab-content">
 						<!-- Tab 1: Gantt -->
 						<div class="aps-tab-pane" id="pane-gantt">
-							<div class="d-flex justify-content-between align-items-center mb-3">
+							<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
 								<div class="d-flex gap-2 align-items-center">
-									<small class="text-muted font-weight-bold">Dica:</small>
-									<span class="small text-muted">Arraste uma operação na linha do tempo para reprogramar. A mudança propagará automaticamente em cadeia para todas as operações sucessoras.</span>
+									<div style="min-width: 280px;">
+										<select class="form-control form-control-sm" id="gantt-filter-wo">
+											<option value="">Todas as Ordens de Produção</option>
+										</select>
+									</div>
+									<small class="text-muted ml-2">Arraste uma operação na linha do tempo para reprogramar e propagar em cadeia.</small>
 								</div>
 								<div class="d-flex gap-2">
 									<button class="btn btn-sm btn-default" id="btn-export-gantt"><i class="octicon octicon-file"></i> Exportar Gantt (Excel)</button>
@@ -284,6 +288,10 @@ class APSWorkbench {
 			me.load_gantt();
 		});
 
+		this.$container.find("#gantt-filter-wo").on("change", function() {
+			me.load_gantt();
+		});
+
 		this.$container.find("#btn-export-gantt, #btn-export-ops").on("click", function() {
 			me.export_gantt_excel();
 		});
@@ -378,16 +386,36 @@ class APSWorkbench {
 
 	load_gantt() {
 		const me = this;
+		const filter_wo = $("#gantt-filter-wo").val() || "";
 		frappe.call({
 			method: "erpz_aps.api.get_gantt_data",
-			args: { ticket_name: this.current_ticket },
+			args: {
+				ticket_name: this.current_ticket,
+				work_order: filter_wo
+			},
 			callback: function(r) {
 				if (r.message) {
 					me.gantt_data = r.message;
+					me.update_wo_filter_options(r.message.work_orders, filter_wo);
 					me.render_interactive_gantt();
 				}
 			}
 		});
+	}
+
+	update_wo_filter_options(work_orders, current_selected) {
+		const select = $("#gantt-filter-wo");
+		if (!work_orders || work_orders.length === 0) return;
+
+		const existingVals = new Set(select.find("option").map((i, o) => $(o).val()).get());
+		work_orders.forEach(w => {
+			if (!existingVals.has(w.work_order)) {
+				select.append(`<option value="${w.work_order}">${w.work_order} - ${w.production_item} (${w.qty_to_produce} un)</option>`);
+			}
+		});
+		if (current_selected) {
+			select.val(current_selected);
+		}
 	}
 
 	render_interactive_gantt() {
@@ -469,8 +497,16 @@ class APSWorkbench {
 			tasksByWs[t.workstation].push(t);
 		});
 
-		// 3. Build Workstation Rows
-		Object.keys(tasksByWs).forEach(wsName => {
+		// 3. Build Workstation Rows (Filter to active workstations if specific WO is selected)
+		const filterWoVal = $("#gantt-filter-wo").val();
+		const visibleWsKeys = Object.keys(tasksByWs).filter(wsName => {
+			if (filterWoVal) {
+				return tasksByWs[wsName].length > 0;
+			}
+			return true;
+		});
+
+		visibleWsKeys.forEach(wsName => {
 			const wsTasks = tasksByWs[wsName];
 			const wsLabel = data.workstations.find(w => w.name === wsName)?.workstation_name || wsName;
 

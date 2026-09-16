@@ -59,21 +59,26 @@ def execute_ticket(ticket_name):
     return res
 
 @frappe.whitelist()
-def get_gantt_data(ticket_name, group_by="workstation"):
+def get_gantt_data(ticket_name, work_order=None, group_by="workstation"):
     """
     Returns structured data for the interactive Gantt chart:
     - tasks: list of operation bars with real-time pointing status (Green=Completed, Amber=In Progress, Blue=Planned)
     - links: dependency arrows between predecessor and successor operations
     - blocked_periods: maintenance/breakdown blocks and weekend unavailable periods per workstation
     - workstations: active resources
+    - work_orders: distinct Work Orders in this ticket for filtering
     """
     ticket = frappe.get_doc("APS Ticket", ticket_name)
     h_start = get_datetime(ticket.horizon_start) if ticket.horizon_start else now_datetime()
     h_end = get_datetime(ticket.horizon_end) if ticket.horizon_end else (h_start + timedelta(days=30))
 
+    filters = {"aps_ticket": ticket_name}
+    if work_order:
+        filters["work_order"] = work_order
+
     ops = frappe.get_all(
         "APS Scheduled Operation",
-        filters={"aps_ticket": ticket_name},
+        filters=filters,
         fields=[
             "name", "work_order", "mrp_ticket", "production_item", "item_name",
             "operation", "sequence_id", "workstation", "planned_start_time",
@@ -83,6 +88,13 @@ def get_gantt_data(ticket_name, group_by="workstation"):
         ],
         order_by="planned_start_time ASC"
     )
+
+    distinct_wos = frappe.db.sql("""
+        SELECT DISTINCT work_order, production_item, item_name, qty_to_produce
+        FROM `tabAPS Scheduled Operation`
+        WHERE aps_ticket = %s
+        ORDER BY work_order ASC
+    """, (ticket_name,), as_dict=True)
 
     workstations = frappe.get_all("Workstation", fields=["name", "workstation_name"])
     ws_map = {w.name: w.workstation_name or w.name for w in workstations}
@@ -282,7 +294,8 @@ def get_gantt_data(ticket_name, group_by="workstation"):
         "links": links,
         "blocked_periods": blocked_periods,
         "distinct_block_legends": distinct_block_legends,
-        "workstations": workstations
+        "workstations": workstations,
+        "work_orders": distinct_wos
     }
 
 @frappe.whitelist()
