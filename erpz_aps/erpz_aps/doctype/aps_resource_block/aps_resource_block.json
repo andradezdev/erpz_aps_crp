@@ -6,6 +6,7 @@
  "field_order": [
   "workstation",
   "block_type",
+  "recurrence",
   "from_datetime",
   "to_datetime",
   "col_1",
@@ -27,23 +28,31 @@
    "fieldname": "block_type",
    "fieldtype": "Select",
    "label": "Tipo de Indisponibilidade",
-   "options": "Manutenção Preventiva\nManutenção Corretiva / Quebra\nFalta de Operador\nFalta de Ferramenta / Utilidade\nFérias Coletivas / Parada Programada\nOutro",
+   "options": "Indisponibilidade de Final de Semana\nManutenção Preventiva\nManutenção Corretiva / Quebra\nFalta de Operador\nFalta de Ferramenta / Utilidade\nFérias Coletivas / Parada Programada\nIndisponibilidade Operacional\nOutro",
    "default": "Manutenção Preventiva",
    "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "recurrence",
+   "fieldtype": "Select",
+   "label": "Tipo de Aplicação do Bloqueio",
+   "options": "Intervalo Específico (Data e Hora)\nTodos os Finais de Semana (Sábados e Domingos)\nIndisponibilidade Contínua / Indefinida",
+   "default": "Intervalo Específico (Data e Hora)",
    "in_list_view": 1
   },
   {
    "fieldname": "from_datetime",
    "fieldtype": "Datetime",
    "label": "Início da Indisponibilidade",
-   "reqd": 1,
+   "reqd": 0,
    "in_list_view": 1
   },
   {
    "fieldname": "to_datetime",
    "fieldtype": "Datetime",
    "label": "Fim da Indisponibilidade",
-   "reqd": 1,
+   "reqd": 0,
    "in_list_view": 1
   },
   {

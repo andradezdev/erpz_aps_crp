@@ -53,24 +53,49 @@ def get_workstation_holidays(workstation, company=None):
 
 def is_workstation_blocked(workstation, check_datetime, blocks_list=None):
     """
-    Checks if a workstation has an active maintenance or breakdown block at check_datetime.
+    Checks if a workstation has an active block at check_datetime:
+    - Recurring weekend block
+    - Permanent / continuous block
+    - Specific interval block
     """
     dt = get_datetime(check_datetime)
-    if blocks_list:
+    is_weekend = dt.weekday() in (5, 6)
+
+    # 1. In-memory check if blocks_list provided
+    if blocks_list is not None:
         for b in blocks_list:
-            if b["workstation"] == workstation and get_datetime(b["from_datetime"]) <= dt <= get_datetime(b["to_datetime"]):
+            if b.get("workstation") != workstation or not b.get("is_active", 1):
+                continue
+            if (b.get("is_weekend_block") or b.get("recurrence") == "Todos os Finais de Semana (Sábados e Domingos)" or b.get("block_type") == "Indisponibilidade de Final de Semana") and is_weekend:
                 return True
+            if (b.get("recurrence") == "Indisponibilidade Contínua / Indefinida" or not b.get("to_datetime")) and b.get("from_datetime"):
+                if dt >= get_datetime(b["from_datetime"]):
+                    return True
+            if b.get("from_datetime") and b.get("to_datetime"):
+                if get_datetime(b["from_datetime"]) <= dt <= get_datetime(b["to_datetime"]):
+                    return True
         return False
 
-    return bool(frappe.db.exists(
-        "APS Resource Block",
-        {
-            "workstation": workstation,
-            "is_active": 1,
-            "from_datetime": ["<=", dt],
-            "to_datetime": [">=", dt]
-        }
-    ))
+    # 2. Database check
+    if is_weekend:
+        has_weekend_block = frappe.db.sql("""
+            SELECT name FROM `tabAPS Resource Block`
+            WHERE workstation = %s AND is_active = 1
+              AND (is_weekend_block = 1 OR recurrence = 'Todos os Finais de Semana (Sábados e Domingos)' OR block_type = 'Indisponibilidade de Final de Semana')
+            LIMIT 1
+        """, (workstation,))
+        if has_weekend_block:
+            return True
+
+    has_block = frappe.db.sql("""
+        SELECT name FROM `tabAPS Resource Block`
+        WHERE workstation = %s AND is_active = 1
+          AND (
+            (from_datetime <= %s AND (to_datetime >= %s OR to_datetime IS NULL OR recurrence = 'Indisponibilidade Contínua / Indefinida'))
+          )
+        LIMIT 1
+    """, (workstation, dt, dt))
+    return bool(has_block)
 
 def add_working_minutes(start_dt, minutes_to_add, workstation=None, company=None):
     """
@@ -99,14 +124,18 @@ def add_working_minutes(start_dt, minutes_to_add, workstation=None, company=None
 
         # 2. Skip active maintenance/breakdown blocks
         if workstation and is_workstation_blocked(workstation, current):
-            block_end = frappe.db.get_value("APS Resource Block", {
-                "workstation": workstation,
-                "is_active": 1,
-                "from_datetime": ["<=", current],
-                "to_datetime": [">=", current]
-            }, "to_datetime")
-            if block_end:
-                current = get_datetime(block_end)
+            # Fetch active block end
+            block_rows = frappe.db.sql("""
+                SELECT to_datetime, recurrence FROM `tabAPS Resource Block`
+                WHERE workstation = %s AND is_active = 1 AND from_datetime <= %s
+                ORDER BY to_datetime DESC LIMIT 1
+            """, (workstation, current), as_dict=True)
+            if block_rows and block_rows[0].to_datetime:
+                current = get_datetime(block_rows[0].to_datetime)
+                continue
+            else:
+                # If continuous or weekend, advance to next day
+                current = datetime.combine(current.date() + timedelta(days=1), first_window_start)
                 continue
 
         cur_time = current.time()

@@ -417,7 +417,16 @@ class APSWorkbench {
 		const totalDays = Math.max(7, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)));
 		const totalWidth = totalDays * me.day_width;
 
-		// 1. Build Legend
+		// 1. Build Legend with specific block types
+		let blockLegendsHtml = "";
+		if (data.distinct_block_legends && Object.keys(data.distinct_block_legends).length > 0) {
+			Object.entries(data.distinct_block_legends).forEach(([bType, bColor]) => {
+				blockLegendsHtml += `<span class="aps-legend-item"><span class="aps-legend-color" style="background: ${bColor}; border: 1px dashed #718096;"></span> ⛔ ${bType}</span>`;
+			});
+		} else {
+			blockLegendsHtml += `<span class="aps-legend-item"><span class="aps-legend-color" style="background: #FEB2B2; border: 1px dashed #718096;"></span> ⛔ Bloqueio de Manutenção</span>`;
+		}
+
 		$(`
 			<div class="aps-gantt-legend">
 				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #2490ef;"></span> Programada</span>
@@ -425,7 +434,8 @@ class APSWorkbench {
 				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #ecc94b;"></span> Em Execução / Apontada</span>
 				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #38a169;"></span> Concluída / Apontada Total</span>
 				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #e53e3e;"></span> Em Atraso / Conflito</span>
-				<span class="aps-legend-item"><span class="aps-legend-color" style="background: repeating-linear-gradient(45deg, #cbd5e0, #cbd5e0 3px, #edf2f7 3px, #edf2f7 6px);"></span> Indisponível (Fim de Semana / Bloqueio)</span>
+				${blockLegendsHtml}
+				<span class="aps-legend-item"><span class="aps-legend-color" style="background: repeating-linear-gradient(45deg, #cbd5e0, #cbd5e0 3px, #edf2f7 3px, #edf2f7 6px);"></span> ⛔ Fim de Semana (Indisponível)</span>
 			</div>
 		`).appendTo(container);
 

@@ -92,41 +92,89 @@ def get_gantt_data(ticket_name, group_by="workstation"):
     for w in workstations:
         ws_weekend_policy[w.name] = bool(frappe.db.get_value("APS Resource", w.name, "allow_weekend_work"))
 
-    # Active maintenance and breakdown blocks
+    # Active maintenance and breakdown blocks (independent of date restriction)
     active_blocks = frappe.get_all(
         "APS Resource Block",
-        filters={"is_active": 1, "to_datetime": [">=", h_start], "from_datetime": ["<=", h_end]},
-        fields=["name", "workstation", "block_type", "from_datetime", "to_datetime", "reason", "block_color"]
+        filters={"is_active": 1},
+        fields=["name", "workstation", "block_type", "recurrence", "from_datetime", "to_datetime", "reason", "block_color", "is_weekend_block"]
     )
 
     blocked_periods = []
-    for b in active_blocks:
-        blocked_periods.append({
-            "workstation": b.workstation,
-            "title": f"Bloqueio: {b.block_type}" + (f" ({b.reason})" if b.reason else ""),
-            "from_datetime": str(b.from_datetime),
-            "to_datetime": str(b.to_datetime),
-            "color": b.block_color or "#E2E8F0",
-            "type": "block"
-        })
+    distinct_block_legends = {}
 
-    # Add weekend blocks for workstations where weekend work is NOT allowed
+    for b in active_blocks:
+        ws_n = b.workstation
+        b_type = b.block_type or "Indisponibilidade"
+        b_reason = f" - {b.reason}" if b.reason else ""
+        b_label = f"[{b_type}]{b_reason}"
+        b_color = b.block_color or "#FEB2B2"
+        distinct_block_legends[b_type] = b_color
+
+        # A. Weekend block (if marked or type is weekend)
+        if b.is_weekend_block or b.recurrence == "Todos os Finais de Semana (Sábados e Domingos)" or b.block_type == "Indisponibilidade de Final de Semana":
+            cur_d = h_start.date()
+            while cur_d <= h_end.date():
+                if cur_d.weekday() == 5: # Saturday
+                    sat_start = datetime.combine(cur_d, time(0, 0))
+                    sun_end = datetime.combine(cur_d + timedelta(days=1), time(23, 59, 59))
+                    blocked_periods.append({
+                        "workstation": ws_n,
+                        "title": b_label,
+                        "from_datetime": str(sat_start),
+                        "to_datetime": str(sun_end),
+                        "color": b_color,
+                        "type": "block",
+                        "block_type": b_type
+                    })
+                cur_d += timedelta(days=1)
+
+        # B. Continuous / Indefinite block
+        elif b.recurrence == "Indisponibilidade Contínua / Indefinida" or not b.to_datetime:
+            b_start = get_datetime(b.from_datetime) if b.from_datetime else h_start
+            blocked_periods.append({
+                "workstation": ws_n,
+                "title": b_label,
+                "from_datetime": str(b_start),
+                "to_datetime": str(h_end),
+                "color": b_color,
+                "type": "block",
+                "block_type": b_type
+            })
+
+        # C. Specific date & time interval
+        elif b.from_datetime and b.to_datetime:
+            b_start = get_datetime(b.from_datetime)
+            b_end = get_datetime(b.to_datetime)
+            if b_end >= h_start and b_start <= h_end:
+                blocked_periods.append({
+                    "workstation": ws_n,
+                    "title": b_label,
+                    "from_datetime": str(b_start),
+                    "to_datetime": str(b_end),
+                    "color": b_color,
+                    "type": "block",
+                    "block_type": b_type
+                })
+
+    # Add general weekend blocks for workstations where allow_weekend_work == 0
     cur_d = h_start.date()
-    end_d = h_end.date()
-    while cur_d <= end_d:
-        if cur_d.weekday() == 5: # Saturday
+    while cur_d <= h_end.date():
+        if cur_d.weekday() == 5:
             sat_start = datetime.combine(cur_d, time(0, 0))
             sun_end = datetime.combine(cur_d + timedelta(days=1), time(23, 59, 59))
             for w in workstations:
                 if not ws_weekend_policy.get(w.name):
-                    blocked_periods.append({
-                        "workstation": w.name,
-                        "title": "Fim de Semana (Indisponível)",
-                        "from_datetime": str(sat_start),
-                        "to_datetime": str(sun_end),
-                        "color": "#EDF2F7",
-                        "type": "weekend"
-                    })
+                    already = any(bp["workstation"] == w.name and bp["from_datetime"] == str(sat_start) for bp in blocked_periods)
+                    if not already:
+                        blocked_periods.append({
+                            "workstation": w.name,
+                            "title": "[Fim de Semana] Indisponível",
+                            "from_datetime": str(sat_start),
+                            "to_datetime": str(sun_end),
+                            "color": "#EDF2F7",
+                            "type": "weekend",
+                            "block_type": "Fim de Semana"
+                        })
         cur_d += timedelta(days=1)
 
     tasks = []
@@ -227,6 +275,7 @@ def get_gantt_data(ticket_name, group_by="workstation"):
         "tasks": tasks,
         "links": links,
         "blocked_periods": blocked_periods,
+        "distinct_block_legends": distinct_block_legends,
         "workstations": workstations
     }
 
