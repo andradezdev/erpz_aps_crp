@@ -302,27 +302,40 @@
 /* Blocked & Weekend intervals on Gantt row */
 .aps-gantt-blocked-interval {
 	position: absolute;
-	top: 2px;
-	height: 56px;
-	background: repeating-linear-gradient(45deg, #edf2f7, #edf2f7 8px, #e2e8f0 8px, #e2e8f0 16px);
-	border: 1px dashed #cbd5e0;
-	border-radius: 4px;
-	z-index: 2;
+	top: 0px;
+	height: 100%;
+	background: repeating-linear-gradient(45deg, #edf2f7, #edf2f7 8px, #e2e8f0 8px, #e2e8f0 16px) !important;
+	border-left: 1px dashed #cbd5e0;
+	border-right: 1px dashed #cbd5e0;
+	border-radius: 2px;
+	z-index: 3;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	overflow: hidden;
 	color: #718096;
 	font-size: 10px;
-	font-weight: 600;
-	opacity: 0.85;
+	font-weight: 700;
+	opacity: 0.90;
 	pointer-events: auto;
 }
 
+.aps-gantt-blocked-interval.weekend {
+	background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 6px, #cbd5e0 6px, #cbd5e0 12px) !important;
+	color: #4a5568 !important;
+}
+
 .aps-gantt-blocked-interval.maintenance {
-	background: repeating-linear-gradient(45deg, #fed7d7, #fed7d7 8px, #feb2b2 8px, #feb2b2 16px);
-	border-color: #fc8181;
-	color: #9b2c2c;
+	background: repeating-linear-gradient(45deg, #fed7d7, #fed7d7 8px, #feb2b2 8px, #feb2b2 16px) !important;
+	border-left: 2px solid #e53e3e;
+	border-right: 2px solid #e53e3e;
+	color: #9b2c2c !important;
+}
+
+.aps-gantt-day-col.weekend-col {
+	background: #e2e8f0 !important;
+	color: #718096 !important;
+	font-weight: 700 !important;
 }
 
 /* Gantt Legend */

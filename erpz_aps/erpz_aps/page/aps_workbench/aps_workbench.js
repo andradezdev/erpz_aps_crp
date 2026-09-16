@@ -443,8 +443,9 @@ class APSWorkbench {
 		let headerDaysHtml = "";
 		for (let i = 0; i < totalDays; i++) {
 			const d = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+			const isWknd = (d.getDay() === 0 || d.getDay() === 6);
 			const dayStr = d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
-			headerDaysHtml += `<div class="aps-gantt-day-col" style="width: ${me.day_width}px;">${dayStr}</div>`;
+			headerDaysHtml += `<div class="aps-gantt-day-col ${isWknd ? 'weekend-col' : ''}" style="width: ${me.day_width}px;">${dayStr}</div>`;
 		}
 
 		const ganttHeader = $(`
@@ -485,8 +486,28 @@ class APSWorkbench {
 
 			const cellContainer = row.find(".aps-gantt-timeline-cells");
 
-			// Render Blocked Periods & Weekends
-			const wsBlocked = (data.blocked_periods || []).filter(b => b.workstation === wsName);
+			// 1. Render Weekend blocked tarjas for this workstation if not allowed
+			const wsObj = data.workstations.find(w => w.name === wsName);
+			const allowsWeekend = wsObj && wsObj.allow_weekend_work == 1;
+
+			if (!allowsWeekend) {
+				for (let dIdx = 0; dIdx < totalDays; dIdx++) {
+					const dayDate = new Date(startDate.getTime() + dIdx * 24 * 60 * 60 * 1000);
+					const dayOfWeek = dayDate.getDay();
+					if (dayOfWeek === 0 || dayOfWeek === 6) {
+						const leftPx = dIdx * me.day_width;
+						const label = dayOfWeek === 6 ? "Sáb (Indisponível)" : "Dom (Indisponível)";
+						$(`
+							<div class="aps-gantt-blocked-interval weekend" style="left: ${leftPx}px; width: ${me.day_width}px;" title="Fim de Semana: ${dayDate.toLocaleDateString('pt-BR')} (Posto Indisponível)">
+								<span>${label}</span>
+							</div>
+						`).appendTo(cellContainer);
+					}
+				}
+			}
+
+			// 2. Render Maintenance & Custom blocks from APS Resource Block
+			const wsBlocked = (data.blocked_periods || []).filter(b => b.workstation === wsName && b.type === "block");
 			wsBlocked.forEach(blk => {
 				const bStart = new Date(blk.from_datetime).getTime();
 				const bEnd = new Date(blk.to_datetime).getTime();
@@ -494,11 +515,10 @@ class APSWorkbench {
 					const offsetDays = Math.max(0, (bStart - startDate.getTime()) / (1000 * 60 * 60 * 24));
 					const leftPx = offsetDays * me.day_width;
 					const durationDays = (Math.min(endDate.getTime(), bEnd) - Math.max(startDate.getTime(), bStart)) / (1000 * 60 * 60 * 24);
-					const widthPx = Math.max(30, durationDays * me.day_width);
-					const isMaint = blk.type === "block";
+					const widthPx = Math.max(40, durationDays * me.day_width);
 
 					$(`
-						<div class="aps-gantt-blocked-interval ${isMaint ? 'maintenance' : ''}" style="left: ${leftPx}px; width: ${widthPx}px;" title="${blk.title}&#10;${blk.from_datetime} até ${blk.to_datetime}">
+						<div class="aps-gantt-blocked-interval maintenance" style="left: ${leftPx}px; width: ${widthPx}px; background-color: ${blk.color || '#FEB2B2'};" title="${blk.title}&#10;${blk.from_datetime} até ${blk.to_datetime}">
 							<span style="padding: 2px 4px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${blk.title}</span>
 						</div>
 					`).appendTo(cellContainer);

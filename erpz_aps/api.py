@@ -92,6 +92,12 @@ def get_gantt_data(ticket_name, group_by="workstation"):
     for w in workstations:
         ws_weekend_policy[w.name] = bool(frappe.db.get_value("APS Resource", w.name, "allow_weekend_work"))
 
+    # Determine broad timeline window to include all scheduled operations and blocks
+    task_ends = [get_datetime(o.planned_end_time) for o in ops if o.planned_end_time]
+    task_starts = [get_datetime(o.planned_start_time) for o in ops if o.planned_start_time]
+    calc_start = (min(h_start, min(task_starts)) if task_starts else h_start) - timedelta(days=7)
+    calc_end = (max(h_end, max(task_ends)) if task_ends else h_end) + timedelta(days=45)
+
     # Active maintenance and breakdown blocks (independent of date restriction)
     active_blocks = frappe.get_all(
         "APS Resource Block",
@@ -112,8 +118,8 @@ def get_gantt_data(ticket_name, group_by="workstation"):
 
         # A. Weekend block (if marked or type is weekend)
         if b.is_weekend_block or b.recurrence == "Todos os Finais de Semana (Sábados e Domingos)" or b.block_type == "Indisponibilidade de Final de Semana":
-            cur_d = h_start.date()
-            while cur_d <= h_end.date():
+            cur_d = calc_start.date()
+            while cur_d <= calc_end.date():
                 if cur_d.weekday() == 5: # Saturday
                     sat_start = datetime.combine(cur_d, time(0, 0))
                     sun_end = datetime.combine(cur_d + timedelta(days=1), time(23, 59, 59))
@@ -130,12 +136,12 @@ def get_gantt_data(ticket_name, group_by="workstation"):
 
         # B. Continuous / Indefinite block
         elif b.recurrence == "Indisponibilidade Contínua / Indefinida" or not b.to_datetime:
-            b_start = get_datetime(b.from_datetime) if b.from_datetime else h_start
+            b_start = get_datetime(b.from_datetime) if b.from_datetime else calc_start
             blocked_periods.append({
                 "workstation": ws_n,
                 "title": b_label,
                 "from_datetime": str(b_start),
-                "to_datetime": str(h_end),
+                "to_datetime": str(calc_end),
                 "color": b_color,
                 "type": "block",
                 "block_type": b_type
@@ -145,7 +151,7 @@ def get_gantt_data(ticket_name, group_by="workstation"):
         elif b.from_datetime and b.to_datetime:
             b_start = get_datetime(b.from_datetime)
             b_end = get_datetime(b.to_datetime)
-            if b_end >= h_start and b_start <= h_end:
+            if b_end >= calc_start and b_start <= calc_end:
                 blocked_periods.append({
                     "workstation": ws_n,
                     "title": b_label,
@@ -157,8 +163,8 @@ def get_gantt_data(ticket_name, group_by="workstation"):
                 })
 
     # Add general weekend blocks for workstations where allow_weekend_work == 0
-    cur_d = h_start.date()
-    while cur_d <= h_end.date():
+    cur_d = calc_start.date()
+    while cur_d <= calc_end.date():
         if cur_d.weekday() == 5:
             sat_start = datetime.combine(cur_d, time(0, 0))
             sun_end = datetime.combine(cur_d + timedelta(days=1), time(23, 59, 59))
