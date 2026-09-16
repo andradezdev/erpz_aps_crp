@@ -284,6 +284,75 @@
 	white-space: nowrap;
 }
 
+.aps-task-bar.completed {
+	background: linear-gradient(135deg, #22543d, #38a169) !important;
+	border: 1px solid #2f855a;
+}
+
+.aps-task-bar.in-progress {
+	background: linear-gradient(135deg, #b7791f, #ecc94b) !important;
+	color: #1a202c !important;
+	border: 1px solid #d69e2e;
+}
+
+.aps-task-bar.delayed {
+	background: linear-gradient(135deg, #9b2c2c, #e53e3e) !important;
+}
+
+/* Blocked & Weekend intervals on Gantt row */
+.aps-gantt-blocked-interval {
+	position: absolute;
+	top: 2px;
+	height: 56px;
+	background: repeating-linear-gradient(45deg, #edf2f7, #edf2f7 8px, #e2e8f0 8px, #e2e8f0 16px);
+	border: 1px dashed #cbd5e0;
+	border-radius: 4px;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	color: #718096;
+	font-size: 10px;
+	font-weight: 600;
+	opacity: 0.85;
+	pointer-events: auto;
+}
+
+.aps-gantt-blocked-interval.maintenance {
+	background: repeating-linear-gradient(45deg, #fed7d7, #fed7d7 8px, #feb2b2 8px, #feb2b2 16px);
+	border-color: #fc8181;
+	color: #9b2c2c;
+}
+
+/* Gantt Legend */
+.aps-gantt-legend {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+	font-size: 11px;
+	font-weight: 600;
+	margin-bottom: 12px;
+	padding: 8px 14px;
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+	border-radius: 6px;
+}
+
+.aps-legend-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.aps-legend-color {
+	width: 14px;
+	height: 14px;
+	border-radius: 3px;
+	display: inline-block;
+}
+
 .aps-task-badge {
 	background: rgba(255,255,255,0.25);
 	padding: 1px 5px;

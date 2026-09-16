@@ -28,6 +28,14 @@ def get_workstation_working_intervals(workstation):
 
     return [(time(8, 0), time(12, 0)), (time(13, 0), time(17, 0))]
 
+def is_weekend_work_allowed(workstation):
+    """
+    Checks if the workstation allows work on weekends.
+    """
+    if not workstation:
+        return False
+    return bool(frappe.db.get_value("APS Resource", workstation, "allow_weekend_work"))
+
 def get_workstation_holidays(workstation, company=None):
     """
     Returns a set of dates considered holidays for the workstation.
@@ -50,7 +58,7 @@ def is_workstation_blocked(workstation, check_datetime, blocks_list=None):
     dt = get_datetime(check_datetime)
     if blocks_list:
         for b in blocks_list:
-            if b["workstation"] == workstation and b["from_datetime"] <= dt <= b["to_datetime"]:
+            if b["workstation"] == workstation and get_datetime(b["from_datetime"]) <= dt <= get_datetime(b["to_datetime"]):
                 return True
         return False
 
@@ -67,23 +75,39 @@ def is_workstation_blocked(workstation, check_datetime, blocks_list=None):
 def add_working_minutes(start_dt, minutes_to_add, workstation=None, company=None):
     """
     Advances start_dt by minutes_to_add, strictly respecting:
-    1. Workstation specific working hours (from tabWorkstation Working Hour).
-    2. Workstation holidays (from Workstation.holiday_list).
-    3. Weekends (Saturday, Sunday).
+    1. Workstation working shifts (from tabWorkstation Working Hour).
+    2. Workstation weekend policy (allow_weekend_work in APS Resource).
+    3. Workstation holidays (from Workstation.holiday_list).
+    4. Maintenance / Breakdown blocks (from tabAPS Resource Block).
     """
     current = get_datetime(start_dt)
     remaining_mins = max(1.0, float(minutes_to_add))
     
     windows = get_workstation_working_intervals(workstation)
     holidays = get_workstation_holidays(workstation, company) if workstation else set()
+    weekend_allowed = is_weekend_work_allowed(workstation) if workstation else False
 
     first_window_start = windows[0][0]
     last_window_end = windows[-1][1]
 
     while remaining_mins > 0:
-        # Skip weekend and holidays
-        while current.weekday() in (5, 6) or current.date() in holidays:
+        # 1. Skip weekend if not allowed, or holidays
+        is_weekend = current.weekday() in (5, 6)
+        while (is_weekend and not weekend_allowed) or current.date() in holidays:
             current = datetime.combine(current.date() + timedelta(days=1), first_window_start)
+            is_weekend = current.weekday() in (5, 6)
+
+        # 2. Skip active maintenance/breakdown blocks
+        if workstation and is_workstation_blocked(workstation, current):
+            block_end = frappe.db.get_value("APS Resource Block", {
+                "workstation": workstation,
+                "is_active": 1,
+                "from_datetime": ["<=", current],
+                "to_datetime": [">=", current]
+            }, "to_datetime")
+            if block_end:
+                current = get_datetime(block_end)
+                continue
 
         cur_time = current.time()
 
@@ -97,11 +121,10 @@ def add_working_minutes(start_dt, minutes_to_add, workstation=None, company=None
             current = datetime.combine(current.date() + timedelta(days=1), first_window_start)
             continue
 
-        # Find which working window we are in or advance to the next window
+        # Find which working window we are in or advance to next window
         found_window = False
         for (w_start, w_end) in windows:
             if w_start <= cur_time < w_end:
-                # We are inside this working window!
                 window_end_dt = datetime.combine(current.date(), w_end)
                 available_mins = (window_end_dt - current).total_seconds() / 60.0
 
@@ -114,7 +137,6 @@ def add_working_minutes(start_dt, minutes_to_add, workstation=None, company=None
                 found_window = True
                 break
             elif cur_time < w_start:
-                # We are in a break between windows (e.g. lunch) -> jump to window start
                 current = datetime.combine(current.date(), w_start)
                 found_window = True
                 break

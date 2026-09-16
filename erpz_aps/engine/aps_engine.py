@@ -224,8 +224,8 @@ class APSEngine:
                         "sequence_id": 10
                     }]
 
-            # Order precedence cursor
-            wo_cursor = max(horizon_start, get_datetime(wo.planned_start_date or horizon_start))
+            # Order precedence cursor: in forward finite scheduling, queue orders consecutively from horizon start
+            wo_cursor = horizon_start
             prev_op_name = None
             prev_op_start = None
             prev_op_end = None

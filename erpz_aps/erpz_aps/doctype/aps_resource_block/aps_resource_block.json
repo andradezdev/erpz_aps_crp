@@ -10,7 +10,9 @@
   "to_datetime",
   "col_1",
   "reason",
-  "is_active"
+  "is_active",
+  "block_color",
+  "is_weekend_block"
  ],
  "fields": [
   {
@@ -58,6 +60,19 @@
    "fieldtype": "Check",
    "label": "Bloqueio Ativo",
    "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "block_color",
+   "fieldtype": "Color",
+   "label": "Cor de Destaque no Gantt",
+   "default": "#E2E8F0"
+  },
+  {
+   "fieldname": "is_weekend_block",
+   "fieldtype": "Check",
+   "label": "Indisponibilidade de Final de Semana",
+   "default": "0",
    "in_list_view": 1
   }
  ],

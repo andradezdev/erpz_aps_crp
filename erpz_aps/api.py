@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import frappe
+from datetime import datetime, date, time, timedelta
 from frappe import _
 from frappe.utils import now_datetime, getdate, get_datetime, flt, cint
 from erpz_aps.engine.aps_engine import APSEngine
@@ -61,10 +62,15 @@ def execute_ticket(ticket_name):
 def get_gantt_data(ticket_name, group_by="workstation"):
     """
     Returns structured data for the interactive Gantt chart:
-    - tasks: list of operation bars
+    - tasks: list of operation bars with real-time pointing status (Green=Completed, Amber=In Progress, Blue=Planned)
     - links: dependency arrows between predecessor and successor operations
-    - resources: workstations
+    - blocked_periods: maintenance/breakdown blocks and weekend unavailable periods per workstation
+    - workstations: active resources
     """
+    ticket = frappe.get_doc("APS Ticket", ticket_name)
+    h_start = get_datetime(ticket.horizon_start) if ticket.horizon_start else now_datetime()
+    h_end = get_datetime(ticket.horizon_end) if ticket.horizon_end else (h_start + timedelta(days=30))
+
     ops = frappe.get_all(
         "APS Scheduled Operation",
         filters={"aps_ticket": ticket_name},
@@ -81,25 +87,98 @@ def get_gantt_data(ticket_name, group_by="workstation"):
     workstations = frappe.get_all("Workstation", fields=["name", "workstation_name"])
     ws_map = {w.name: w.workstation_name or w.name for w in workstations}
 
+    # Pre-fetch weekend policies per workstation
+    ws_weekend_policy = {}
+    for w in workstations:
+        ws_weekend_policy[w.name] = bool(frappe.db.get_value("APS Resource", w.name, "allow_weekend_work"))
+
+    # Active maintenance and breakdown blocks
+    active_blocks = frappe.get_all(
+        "APS Resource Block",
+        filters={"is_active": 1, "to_datetime": [">=", h_start], "from_datetime": ["<=", h_end]},
+        fields=["name", "workstation", "block_type", "from_datetime", "to_datetime", "reason", "block_color"]
+    )
+
+    blocked_periods = []
+    for b in active_blocks:
+        blocked_periods.append({
+            "workstation": b.workstation,
+            "title": f"Bloqueio: {b.block_type}" + (f" ({b.reason})" if b.reason else ""),
+            "from_datetime": str(b.from_datetime),
+            "to_datetime": str(b.to_datetime),
+            "color": b.block_color or "#E2E8F0",
+            "type": "block"
+        })
+
+    # Add weekend blocks for workstations where weekend work is NOT allowed
+    cur_d = h_start.date()
+    end_d = h_end.date()
+    while cur_d <= end_d:
+        if cur_d.weekday() == 5: # Saturday
+            sat_start = datetime.combine(cur_d, time(0, 0))
+            sun_end = datetime.combine(cur_d + timedelta(days=1), time(23, 59, 59))
+            for w in workstations:
+                if not ws_weekend_policy.get(w.name):
+                    blocked_periods.append({
+                        "workstation": w.name,
+                        "title": "Fim de Semana (Indisponível)",
+                        "from_datetime": str(sat_start),
+                        "to_datetime": str(sun_end),
+                        "color": "#EDF2F7",
+                        "type": "weekend"
+                    })
+        cur_d += timedelta(days=1)
+
     tasks = []
     links = []
-
-    # Map for building dependency arrows
     wo_ops_map = {}
 
     for o in ops:
         start_str = str(o.planned_start_time)
         end_str = str(o.planned_end_time)
-        
-        # Color coding
-        progress = 1.0 if o.status == "Concluída" else (0.5 if o.status == "Em Execução" else 0.0)
-        
-        # Group label
+
+        # Check execution / pointing status from Job Card and Execution Log
+        jc = frappe.db.get_value(
+            "Job Card",
+            {"work_order": o.work_order, "operation": o.operation, "docstatus": ["<", 2]},
+            ["status", "total_completed_qty", "docstatus"],
+            as_dict=True
+        )
+        exec_log = frappe.db.get_value(
+            "APS Execution Log",
+            {"work_order": o.work_order, "operation": o.operation},
+            ["log_type", "qty_completed"],
+            as_dict=True
+        )
+
+        is_completed = (jc and (jc.status == "Completed" or jc.docstatus == 1)) or (exec_log and exec_log.log_type == "Término")
+        is_in_progress = (jc and (jc.status == "Work In Progress" or flt(jc.total_completed_qty) > 0)) or (exec_log and exec_log.log_type == "Início")
+
+        if is_completed:
+            color_status = "completed"
+            status_label = "Concluída / Apontada"
+            progress = 1.0
+        elif is_in_progress:
+            color_status = "in-progress"
+            status_label = "Em Execução / Apontada"
+            progress = 0.5
+        elif o.is_adjusted:
+            color_status = "adjusted"
+            status_label = "Ajustada (Gantt)"
+            progress = 0.0
+        elif o.has_conflict or o.delay_hours > 0:
+            color_status = "delayed"
+            status_label = "Atrasada / Conflito"
+            progress = 0.0
+        else:
+            color_status = "scheduled"
+            status_label = "Programada"
+            progress = 0.0
+
         ws_label = ws_map.get(o.workstation, o.workstation)
-        
         task_id = o.name
         task_label = f"[{o.work_order}] {o.operation} ({int(o.duration_mins)}m)"
-        
+
         tasks.append({
             "id": task_id,
             "text": task_label,
@@ -107,6 +186,8 @@ def get_gantt_data(ticket_name, group_by="workstation"):
             "end_date": end_str,
             "duration": o.duration_mins,
             "progress": progress,
+            "color_status": color_status,
+            "status_label": status_label,
             "workstation": o.workstation,
             "workstation_label": ws_label,
             "work_order": o.work_order,
@@ -121,7 +202,6 @@ def get_gantt_data(ticket_name, group_by="workstation"):
             "delay_hours": o.delay_hours
         })
 
-        # Track operations by Work Order and sequence
         key = (o.work_order, o.sequence_id)
         wo_ops_map[key] = task_id
 
@@ -129,7 +209,6 @@ def get_gantt_data(ticket_name, group_by="workstation"):
     for o in ops:
         current_id = o.name
         current_seq = o.sequence_id
-        # Find predecessor operation with highest sequence < current_seq in the same WO
         preds = [
             wo_ops_map[(o.work_order, s)] 
             for (w, s) in wo_ops_map.keys() 
@@ -141,12 +220,13 @@ def get_gantt_data(ticket_name, group_by="workstation"):
                 "id": f"{pred_id}_{current_id}",
                 "source": pred_id,
                 "target": current_id,
-                "type": "0" # finish-to-start
+                "type": "0"
             })
 
     return {
         "tasks": tasks,
         "links": links,
+        "blocked_periods": blocked_periods,
         "workstations": workstations
     }
 

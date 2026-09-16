@@ -417,7 +417,19 @@ class APSWorkbench {
 		const totalDays = Math.max(7, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)));
 		const totalWidth = totalDays * me.day_width;
 
-		// 1. Build Header
+		// 1. Build Legend
+		$(`
+			<div class="aps-gantt-legend">
+				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #2490ef;"></span> Programada</span>
+				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #ed8936;"></span> Ajustada (Gantt)</span>
+				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #ecc94b;"></span> Em Execução / Apontada</span>
+				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #38a169;"></span> Concluída / Apontada Total</span>
+				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #e53e3e;"></span> Em Atraso / Conflito</span>
+				<span class="aps-legend-item"><span class="aps-legend-color" style="background: repeating-linear-gradient(45deg, #cbd5e0, #cbd5e0 3px, #edf2f7 3px, #edf2f7 6px);"></span> Indisponível (Fim de Semana / Bloqueio)</span>
+			</div>
+		`).appendTo(container);
+
+		// 2. Build Header
 		let headerDaysHtml = "";
 		for (let i = 0; i < totalDays; i++) {
 			const d = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
@@ -446,7 +458,7 @@ class APSWorkbench {
 			tasksByWs[t.workstation].push(t);
 		});
 
-		// 2. Build Workstation Rows
+		// 3. Build Workstation Rows
 		Object.keys(tasksByWs).forEach(wsName => {
 			const wsTasks = tasksByWs[wsName];
 			const wsLabel = data.workstations.find(w => w.name === wsName)?.workstation_name || wsName;
@@ -463,6 +475,26 @@ class APSWorkbench {
 
 			const cellContainer = row.find(".aps-gantt-timeline-cells");
 
+			// Render Blocked Periods & Weekends
+			const wsBlocked = (data.blocked_periods || []).filter(b => b.workstation === wsName);
+			wsBlocked.forEach(blk => {
+				const bStart = new Date(blk.from_datetime).getTime();
+				const bEnd = new Date(blk.to_datetime).getTime();
+				if (bEnd > startDate.getTime() && bStart < endDate.getTime()) {
+					const offsetDays = Math.max(0, (bStart - startDate.getTime()) / (1000 * 60 * 60 * 24));
+					const leftPx = offsetDays * me.day_width;
+					const durationDays = (Math.min(endDate.getTime(), bEnd) - Math.max(startDate.getTime(), bStart)) / (1000 * 60 * 60 * 24);
+					const widthPx = Math.max(30, durationDays * me.day_width);
+					const isMaint = blk.type === "block";
+
+					$(`
+						<div class="aps-gantt-blocked-interval ${isMaint ? 'maintenance' : ''}" style="left: ${leftPx}px; width: ${widthPx}px;" title="${blk.title}&#10;${blk.from_datetime} até ${blk.to_datetime}">
+							<span style="padding: 2px 4px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${blk.title}</span>
+						</div>
+					`).appendTo(cellContainer);
+				}
+			});
+
 			// Position task bars
 			wsTasks.forEach(task => {
 				const tStart = new Date(task.start_date).getTime();
@@ -473,10 +505,10 @@ class APSWorkbench {
 				const durationDays = Math.max(0.05, (tEnd - tStart) / (1000 * 60 * 60 * 24));
 				const widthPx = Math.max(90, durationDays * me.day_width);
 
-				const statusClass = task.has_conflict ? "conflict" : (task.is_adjusted ? "adjusted" : "");
+				const statusClass = task.color_status || (task.has_conflict ? "delayed" : (task.is_adjusted ? "adjusted" : "scheduled"));
 
 				const taskBar = $(`
-					<div class="aps-task-bar ${statusClass}" data-op-id="${task.id}" data-wo="${task.work_order}" data-seq="${task.sequence_id}" style="left: ${leftPx}px; width: ${widthPx}px;" title="OP: ${task.work_order} - ${task.operation}&#10;Início: ${task.start_date}&#10;Término: ${task.end_date}&#10;Qtd: ${task.qty}">
+					<div class="aps-task-bar ${statusClass}" data-op-id="${task.id}" data-wo="${task.work_order}" data-seq="${task.sequence_id}" style="left: ${leftPx}px; width: ${widthPx}px;" title="OP: ${task.work_order} - ${task.operation}&#10;Situação: ${task.status_label || task.status}&#10;Início: ${task.start_date}&#10;Término: ${task.end_date}&#10;Qtd: ${task.qty}">
 						<div class="aps-task-content">
 							<span class="aps-task-badge">${task.sequence_id}</span>
 							<b>${task.operation}</b>
