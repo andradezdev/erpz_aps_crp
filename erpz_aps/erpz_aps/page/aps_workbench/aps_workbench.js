@@ -164,13 +164,17 @@ class APSWorkbench {
 						<!-- Tab 1: Gantt -->
 						<div class="aps-tab-pane" id="pane-gantt">
 							<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-								<div class="d-flex gap-2 align-items-center">
-									<div style="min-width: 280px;">
-										<select class="form-control form-control-sm" id="gantt-filter-wo">
-											<option value="">Todas as Ordens de Produção</option>
-										</select>
+								<div class="d-flex gap-2 align-items-center flex-wrap">
+									<div class="gantt-search-wrapper" id="gantt-wo-search-container">
+										<div class="gantt-search-box">
+											<span class="text-muted mr-1" style="display: flex; align-items: center;"><svg class="icon icon-sm" style="width: 13px; height: 13px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></span>
+											<input type="text" id="gantt-filter-search" placeholder="Filtrar por OP, código ou nome do produto..." autocomplete="off">
+											<button class="gantt-search-clear" id="gantt-filter-clear-btn" type="button" title="Limpar filtro" style="display: none;">&times;</button>
+										</div>
+										<input type="hidden" id="gantt-filter-wo" value="">
+										<div id="gantt-filter-dropdown" class="gantt-search-dropdown"></div>
 									</div>
-									<small class="text-muted ml-2">Arraste uma operação na linha do tempo para reprogramar e propagar em cadeia.</small>
+									<small class="text-muted ml-2 d-none d-lg-inline">Arraste uma operação na linha do tempo para reprogramar e propagar em cadeia.</small>
 								</div>
 								<div class="d-flex gap-2">
 									<button class="btn btn-sm btn-default" id="btn-export-gantt"><i class="octicon octicon-file"></i> Exportar Gantt (Excel)</button>
@@ -288,12 +292,76 @@ class APSWorkbench {
 			me.load_gantt();
 		});
 
-		this.$container.find("#gantt-filter-wo").on("change", function() {
-			me.load_gantt();
-		});
-
 		this.$container.find("#btn-export-gantt, #btn-export-ops").on("click", function() {
 			me.export_gantt_excel();
+		});
+
+		// Searchable Work Order / Product Filter
+		const searchInput = this.$container.find("#gantt-filter-search");
+		const searchDropdown = this.$container.find("#gantt-filter-dropdown");
+		const clearBtn = this.$container.find("#gantt-filter-clear-btn");
+
+		searchInput.on("focus click", function(e) {
+			e.stopPropagation();
+			me.render_wo_filter_dropdown($(this).val());
+		});
+
+		searchInput.on("input", function() {
+			const val = $(this).val();
+			if (val) {
+				clearBtn.show();
+			} else {
+				if (!$("#gantt-filter-wo").val()) {
+					clearBtn.hide();
+				}
+			}
+			$("#gantt-filter-wo").val("");
+			me.current_search_query = "";
+			me.render_wo_filter_dropdown(val);
+		});
+
+		searchInput.on("keydown", function(e) {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				searchDropdown.hide();
+				const val = $(this).val().trim();
+				const matches = me.get_matching_work_orders(val);
+				if (matches.length === 1) {
+					me.select_work_order_filter(matches[0]);
+				} else {
+					me.current_search_query = val;
+					$("#gantt-filter-wo").val("");
+					if (val) {
+						clearBtn.show();
+					}
+					me.load_gantt();
+				}
+			} else if (e.key === "Escape") {
+				searchDropdown.hide();
+			}
+		});
+
+		searchDropdown.on("click", ".wo-filter-option", function(e) {
+			e.stopPropagation();
+			const selectedWo = $(this).data("wo");
+			if (!selectedWo) {
+				me.clear_work_order_filter();
+			} else {
+				const woObj = (me.all_work_orders || []).find(w => w.work_order === selectedWo);
+				me.select_work_order_filter(woObj || { work_order: selectedWo });
+			}
+			searchDropdown.hide();
+		});
+
+		clearBtn.on("click", function(e) {
+			e.stopPropagation();
+			me.clear_work_order_filter();
+		});
+
+		$(document).off("click.aps_wo_dropdown").on("click.aps_wo_dropdown", function(e) {
+			if (!$(e.target).closest("#gantt-wo-search-container").length) {
+				searchDropdown.hide();
+			}
 		});
 	}
 
@@ -387,35 +455,122 @@ class APSWorkbench {
 	load_gantt() {
 		const me = this;
 		const filter_wo = $("#gantt-filter-wo").val() || "";
+		const search_val = (!filter_wo && (me.current_search_query || $("#gantt-filter-search").val())) ?
+			(me.current_search_query || $("#gantt-filter-search").val()).trim() : "";
+
 		frappe.call({
 			method: "erpz_aps.api.get_gantt_data",
 			args: {
 				ticket_name: this.current_ticket,
-				work_order: filter_wo
+				work_order: filter_wo,
+				search: search_val
 			},
 			callback: function(r) {
 				if (r.message) {
 					me.gantt_data = r.message;
-					me.update_wo_filter_options(r.message.work_orders, filter_wo);
+					if (r.message.work_orders) {
+						me.all_work_orders = r.message.work_orders;
+					}
 					me.render_interactive_gantt();
 				}
 			}
 		});
 	}
 
-	update_wo_filter_options(work_orders, current_selected) {
-		const select = $("#gantt-filter-wo");
-		if (!work_orders || work_orders.length === 0) return;
+	get_matching_work_orders(query = "") {
+		const wos = this.all_work_orders || [];
+		const q = (query || "").toLowerCase().trim();
+		if (!q) return wos;
 
-		const existingVals = new Set(select.find("option").map((i, o) => $(o).val()).get());
-		work_orders.forEach(w => {
-			if (!existingVals.has(w.work_order)) {
-				select.append(`<option value="${w.work_order}">${w.work_order} - ${w.production_item} (${w.qty_to_produce} un)</option>`);
-			}
+		return wos.filter(w => {
+			const wo = (w.work_order || "").toLowerCase();
+			const item = (w.production_item || "").toLowerCase();
+			const name = (w.item_name || "").toLowerCase();
+			return wo.includes(q) || item.includes(q) || name.includes(q);
 		});
-		if (current_selected) {
-			select.val(current_selected);
+	}
+
+	render_wo_filter_dropdown(query = "") {
+		const dropdown = $("#gantt-filter-dropdown").empty();
+		const currentWo = $("#gantt-filter-wo").val() || "";
+		const q = (query || "").toLowerCase().trim();
+
+		// Option to view all
+		const isAllActive = !currentWo && !q ? "active font-weight-bold" : "";
+		dropdown.append(`
+			<div class="gantt-search-item wo-filter-option ${isAllActive}" data-wo="">
+				<div class="d-flex align-items-center">
+					<span class="mr-2 text-muted" style="display: flex; align-items: center;">
+						<svg class="icon icon-xs" style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+					</span>
+					<span><strong>Todas as Ordens de Produção</strong></span>
+				</div>
+			</div>
+		`);
+
+		const matches = this.get_matching_work_orders(query);
+
+		if (matches.length === 0) {
+			dropdown.append(`
+				<div class="p-3 text-muted text-center small">
+					Nenhuma OP encontrada com "<strong>${frappe.utils.escape_html(query)}</strong>".
+					<div class="mt-1 text-primary">Pressione <b>Enter</b> para buscar globalmente</div>
+				</div>
+			`);
+			dropdown.show();
+			return;
 		}
+
+		const highlightMatch = (text, term) => {
+			if (!text || !term) return frappe.utils.escape_html(text || "");
+			const str = String(text);
+			const idx = str.toLowerCase().indexOf(term.toLowerCase());
+			if (idx === -1) return frappe.utils.escape_html(str);
+			const before = frappe.utils.escape_html(str.substring(0, idx));
+			const match = frappe.utils.escape_html(str.substring(idx, idx + term.length));
+			const after = frappe.utils.escape_html(str.substring(idx + term.length));
+			return `${before}<mark>${match}</mark>${after}`;
+		};
+
+		matches.forEach(w => {
+			const isSelected = w.work_order === currentWo ? "active" : "";
+			const row = $(`
+				<div class="gantt-search-item wo-filter-option ${isSelected}" data-wo="${frappe.utils.escape_html(w.work_order)}">
+					<div class="d-flex justify-content-between align-items-center">
+						<span class="font-weight-bold text-primary">${highlightMatch(w.work_order, q)}</span>
+						<span class="badge badge-light border text-muted">${w.qty_to_produce} un</span>
+					</div>
+					<div class="small text-dark mt-1 text-truncate" title="${frappe.utils.escape_html(w.production_item)} - ${frappe.utils.escape_html(w.item_name || '')}">
+						<span class="font-weight-bold">${highlightMatch(w.production_item, q)}</span>
+						${w.item_name ? `<span class="text-muted"> — ${highlightMatch(w.item_name, q)}</span>` : ""}
+					</div>
+				</div>
+			`);
+			dropdown.append(row);
+		});
+
+		dropdown.show();
+	}
+
+	select_work_order_filter(woObj) {
+		const wo = woObj.work_order;
+		$("#gantt-filter-wo").val(wo);
+		const label = woObj.item_name ?
+			`${wo} | ${woObj.production_item} — ${woObj.item_name}` :
+			(woObj.production_item ? `${wo} | ${woObj.production_item}` : wo);
+
+		$("#gantt-filter-search").val(label);
+		$("#gantt-filter-clear-btn").show();
+		this.current_search_query = "";
+		this.load_gantt();
+	}
+
+	clear_work_order_filter() {
+		$("#gantt-filter-wo").val("");
+		$("#gantt-filter-search").val("");
+		$("#gantt-filter-clear-btn").hide();
+		this.current_search_query = "";
+		this.load_gantt();
 	}
 
 	render_interactive_gantt() {
@@ -497,10 +652,11 @@ class APSWorkbench {
 			tasksByWs[t.workstation].push(t);
 		});
 
-		// 3. Build Workstation Rows (Filter to active workstations if specific WO is selected)
+		// 3. Build Workstation Rows (Filter to active workstations if specific WO or search is selected)
 		const filterWoVal = $("#gantt-filter-wo").val();
+		const filterActive = filterWoVal || (me.current_search_query && me.current_search_query.trim());
 		const visibleWsKeys = Object.keys(tasksByWs).filter(wsName => {
-			if (filterWoVal) {
+			if (filterActive) {
 				return tasksByWs[wsName].length > 0;
 			}
 			return true;
@@ -750,7 +906,17 @@ class APSWorkbench {
 	export_gantt_excel() {
 		const me = this;
 		if (!this.current_ticket) return;
-		window.open(`/api/method/erpz_aps.api.export_aps_gantt_excel?ticket_name=${me.current_ticket}`);
+		const filter_wo = $("#gantt-filter-wo").val() || "";
+		const search_val = (!filter_wo && (me.current_search_query || $("#gantt-filter-search").val())) ?
+			(me.current_search_query || $("#gantt-filter-search").val()).trim() : "";
+
+		let url = `/api/method/erpz_aps.api.export_aps_gantt_excel?ticket_name=${encodeURIComponent(me.current_ticket)}`;
+		if (filter_wo) {
+			url += `&work_order=${encodeURIComponent(filter_wo)}`;
+		} else if (search_val) {
+			url += `&search=${encodeURIComponent(search_val)}`;
+		}
+		window.open(url);
 	}
 
 	load_adjustment_history() {

@@ -18,14 +18,10 @@ function show_aps_workbench(wrapper) {
 	}
 }
 
-frappe.pages["aps-workbench"] = frappe.pages["aps-workbench"] || {};
-frappe.pages["aps-workbench"].on_page_load = init_aps_workbench;
-frappe.pages["aps-workbench"].on_page_show = show_aps_workbench;
+frappe.pages["aps_workbench"].on_page_load = init_aps_workbench;
+frappe.pages["aps_workbench"].on_page_show = show_aps_workbench;
 
-if (frappe.pages["aps_workbench"]) {
-	frappe.pages["aps_workbench"].on_page_load = init_aps_workbench;
-	frappe.pages["aps_workbench"].on_page_show = show_aps_workbench;
-}
+frappe.pages["aps-workbench"] = frappe.pages["aps_workbench"];
 
 class APSWorkbench {
 	constructor(page) {
@@ -167,12 +163,21 @@ class APSWorkbench {
 					<div class="aps-tab-content">
 						<!-- Tab 1: Gantt -->
 						<div class="aps-tab-pane" id="pane-gantt">
-							<div class="d-flex justify-content-between align-items-center mb-3">
-								<div class="d-flex gap-2 align-items-center">
-									<small class="text-muted font-weight-bold">Dica:</small>
-									<span class="small text-muted">Arraste uma operação na linha do tempo para reprogramar. A mudança propagará automaticamente em cadeia para todas as operações sucessoras.</span>
+							<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+								<div class="d-flex gap-2 align-items-center flex-wrap">
+									<div class="gantt-search-wrapper" id="gantt-wo-search-container">
+										<div class="gantt-search-box">
+											<span class="text-muted mr-1" style="display: flex; align-items: center;"><svg class="icon icon-sm" style="width: 13px; height: 13px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></span>
+											<input type="text" id="gantt-filter-search" placeholder="Filtrar por OP, código ou nome do produto..." autocomplete="off">
+											<button class="gantt-search-clear" id="gantt-filter-clear-btn" type="button" title="Limpar filtro" style="display: none;">&times;</button>
+										</div>
+										<input type="hidden" id="gantt-filter-wo" value="">
+										<div id="gantt-filter-dropdown" class="gantt-search-dropdown"></div>
+									</div>
+									<small class="text-muted ml-2 d-none d-lg-inline">Arraste uma operação na linha do tempo para reprogramar e propagar em cadeia.</small>
 								</div>
 								<div class="d-flex gap-2">
+									<button class="btn btn-sm btn-default" id="btn-export-gantt"><i class="octicon octicon-file"></i> Exportar Gantt (Excel)</button>
 									<button class="btn btn-sm btn-default" id="btn-refresh-gantt"><i class="octicon octicon-sync"></i> Atualizar Gantt</button>
 								</div>
 							</div>
@@ -206,16 +211,21 @@ class APSWorkbench {
 
 						<!-- Tab 3: Operations Grid -->
 						<div class="aps-tab-pane d-none" id="pane-operations">
+							<div class="d-flex justify-content-between align-items-center mb-3">
+								<h6 class="font-weight-bold m-0">Operações Sequenciadas na Ordem do Gantt</h6>
+								<button class="btn btn-sm btn-default" id="btn-export-ops"><i class="octicon octicon-file"></i> Exportar Operações (Excel)</button>
+							</div>
 							<div class="table-responsive">
 								<table class="table table-bordered table-sm" id="aps-ops-table">
 									<thead>
 										<tr>
+											<th width="40">#</th>
+											<th>Início Programado</th>
+											<th>Término Programado</th>
+											<th>Posto de Trabalho</th>
 											<th>Ordem de Produção</th>
 											<th>Item</th>
 											<th>Operação</th>
-											<th>Posto</th>
-											<th>Início Programado</th>
-											<th>Término Programado</th>
 											<th>Duração</th>
 											<th>Predecessora</th>
 											<th>Situação</th>
@@ -280,6 +290,78 @@ class APSWorkbench {
 
 		this.$container.find("#btn-refresh-gantt").on("click", function() {
 			me.load_gantt();
+		});
+
+		this.$container.find("#btn-export-gantt, #btn-export-ops").on("click", function() {
+			me.export_gantt_excel();
+		});
+
+		// Searchable Work Order / Product Filter
+		const searchInput = this.$container.find("#gantt-filter-search");
+		const searchDropdown = this.$container.find("#gantt-filter-dropdown");
+		const clearBtn = this.$container.find("#gantt-filter-clear-btn");
+
+		searchInput.on("focus click", function(e) {
+			e.stopPropagation();
+			me.render_wo_filter_dropdown($(this).val());
+		});
+
+		searchInput.on("input", function() {
+			const val = $(this).val();
+			if (val) {
+				clearBtn.show();
+			} else {
+				if (!$("#gantt-filter-wo").val()) {
+					clearBtn.hide();
+				}
+			}
+			$("#gantt-filter-wo").val("");
+			me.current_search_query = "";
+			me.render_wo_filter_dropdown(val);
+		});
+
+		searchInput.on("keydown", function(e) {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				searchDropdown.hide();
+				const val = $(this).val().trim();
+				const matches = me.get_matching_work_orders(val);
+				if (matches.length === 1) {
+					me.select_work_order_filter(matches[0]);
+				} else {
+					me.current_search_query = val;
+					$("#gantt-filter-wo").val("");
+					if (val) {
+						clearBtn.show();
+					}
+					me.load_gantt();
+				}
+			} else if (e.key === "Escape") {
+				searchDropdown.hide();
+			}
+		});
+
+		searchDropdown.on("click", ".wo-filter-option", function(e) {
+			e.stopPropagation();
+			const selectedWo = $(this).data("wo");
+			if (!selectedWo) {
+				me.clear_work_order_filter();
+			} else {
+				const woObj = (me.all_work_orders || []).find(w => w.work_order === selectedWo);
+				me.select_work_order_filter(woObj || { work_order: selectedWo });
+			}
+			searchDropdown.hide();
+		});
+
+		clearBtn.on("click", function(e) {
+			e.stopPropagation();
+			me.clear_work_order_filter();
+		});
+
+		$(document).off("click.aps_wo_dropdown").on("click.aps_wo_dropdown", function(e) {
+			if (!$(e.target).closest("#gantt-wo-search-container").length) {
+				searchDropdown.hide();
+			}
 		});
 	}
 
@@ -372,16 +454,123 @@ class APSWorkbench {
 
 	load_gantt() {
 		const me = this;
+		const filter_wo = $("#gantt-filter-wo").val() || "";
+		const search_val = (!filter_wo && (me.current_search_query || $("#gantt-filter-search").val())) ?
+			(me.current_search_query || $("#gantt-filter-search").val()).trim() : "";
+
 		frappe.call({
 			method: "erpz_aps.api.get_gantt_data",
-			args: { ticket_name: this.current_ticket },
+			args: {
+				ticket_name: this.current_ticket,
+				work_order: filter_wo,
+				search: search_val
+			},
 			callback: function(r) {
 				if (r.message) {
 					me.gantt_data = r.message;
+					if (r.message.work_orders) {
+						me.all_work_orders = r.message.work_orders;
+					}
 					me.render_interactive_gantt();
 				}
 			}
 		});
+	}
+
+	get_matching_work_orders(query = "") {
+		const wos = this.all_work_orders || [];
+		const q = (query || "").toLowerCase().trim();
+		if (!q) return wos;
+
+		return wos.filter(w => {
+			const wo = (w.work_order || "").toLowerCase();
+			const item = (w.production_item || "").toLowerCase();
+			const name = (w.item_name || "").toLowerCase();
+			return wo.includes(q) || item.includes(q) || name.includes(q);
+		});
+	}
+
+	render_wo_filter_dropdown(query = "") {
+		const dropdown = $("#gantt-filter-dropdown").empty();
+		const currentWo = $("#gantt-filter-wo").val() || "";
+		const q = (query || "").toLowerCase().trim();
+
+		// Option to view all
+		const isAllActive = !currentWo && !q ? "active font-weight-bold" : "";
+		dropdown.append(`
+			<div class="gantt-search-item wo-filter-option ${isAllActive}" data-wo="">
+				<div class="d-flex align-items-center">
+					<span class="mr-2 text-muted" style="display: flex; align-items: center;">
+						<svg class="icon icon-xs" style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+					</span>
+					<span><strong>Todas as Ordens de Produção</strong></span>
+				</div>
+			</div>
+		`);
+
+		const matches = this.get_matching_work_orders(query);
+
+		if (matches.length === 0) {
+			dropdown.append(`
+				<div class="p-3 text-muted text-center small">
+					Nenhuma OP encontrada com "<strong>${frappe.utils.escape_html(query)}</strong>".
+					<div class="mt-1 text-primary">Pressione <b>Enter</b> para buscar globalmente</div>
+				</div>
+			`);
+			dropdown.show();
+			return;
+		}
+
+		const highlightMatch = (text, term) => {
+			if (!text || !term) return frappe.utils.escape_html(text || "");
+			const str = String(text);
+			const idx = str.toLowerCase().indexOf(term.toLowerCase());
+			if (idx === -1) return frappe.utils.escape_html(str);
+			const before = frappe.utils.escape_html(str.substring(0, idx));
+			const match = frappe.utils.escape_html(str.substring(idx, idx + term.length));
+			const after = frappe.utils.escape_html(str.substring(idx + term.length));
+			return `${before}<mark>${match}</mark>${after}`;
+		};
+
+		matches.forEach(w => {
+			const isSelected = w.work_order === currentWo ? "active" : "";
+			const row = $(`
+				<div class="gantt-search-item wo-filter-option ${isSelected}" data-wo="${frappe.utils.escape_html(w.work_order)}">
+					<div class="d-flex justify-content-between align-items-center">
+						<span class="font-weight-bold text-primary">${highlightMatch(w.work_order, q)}</span>
+						<span class="badge badge-light border text-muted">${w.qty_to_produce} un</span>
+					</div>
+					<div class="small text-dark mt-1 text-truncate" title="${frappe.utils.escape_html(w.production_item)} - ${frappe.utils.escape_html(w.item_name || '')}">
+						<span class="font-weight-bold">${highlightMatch(w.production_item, q)}</span>
+						${w.item_name ? `<span class="text-muted"> — ${highlightMatch(w.item_name, q)}</span>` : ""}
+					</div>
+				</div>
+			`);
+			dropdown.append(row);
+		});
+
+		dropdown.show();
+	}
+
+	select_work_order_filter(woObj) {
+		const wo = woObj.work_order;
+		$("#gantt-filter-wo").val(wo);
+		const label = woObj.item_name ?
+			`${wo} | ${woObj.production_item} — ${woObj.item_name}` :
+			(woObj.production_item ? `${wo} | ${woObj.production_item}` : wo);
+
+		$("#gantt-filter-search").val(label);
+		$("#gantt-filter-clear-btn").show();
+		this.current_search_query = "";
+		this.load_gantt();
+	}
+
+	clear_work_order_filter() {
+		$("#gantt-filter-wo").val("");
+		$("#gantt-filter-search").val("");
+		$("#gantt-filter-clear-btn").hide();
+		this.current_search_query = "";
+		this.load_gantt();
 	}
 
 	render_interactive_gantt() {
@@ -411,12 +600,35 @@ class APSWorkbench {
 		const totalDays = Math.max(7, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)));
 		const totalWidth = totalDays * me.day_width;
 
-		// 1. Build Header
+		// 1. Build Legend with specific block types
+		let blockLegendsHtml = "";
+		if (data.distinct_block_legends && Object.keys(data.distinct_block_legends).length > 0) {
+			Object.entries(data.distinct_block_legends).forEach(([bType, bColor]) => {
+				blockLegendsHtml += `<span class="aps-legend-item"><span class="aps-legend-color" style="background: ${bColor}; border: 1px dashed #718096;"></span> ⛔ ${bType}</span>`;
+			});
+		} else {
+			blockLegendsHtml += `<span class="aps-legend-item"><span class="aps-legend-color" style="background: #FEB2B2; border: 1px dashed #718096;"></span> ⛔ Bloqueio de Manutenção</span>`;
+		}
+
+		$(`
+			<div class="aps-gantt-legend">
+				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #2490ef;"></span> Programada</span>
+				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #ed8936;"></span> Ajustada (Gantt)</span>
+				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #ecc94b;"></span> Em Execução / Apontada</span>
+				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #38a169;"></span> Concluída / Apontada Total</span>
+				<span class="aps-legend-item"><span class="aps-legend-color" style="background: #e53e3e;"></span> Em Atraso / Conflito</span>
+				${blockLegendsHtml}
+				<span class="aps-legend-item"><span class="aps-legend-color" style="background: repeating-linear-gradient(45deg, #cbd5e0, #cbd5e0 3px, #edf2f7 3px, #edf2f7 6px);"></span> ⛔ Fim de Semana (Indisponível)</span>
+			</div>
+		`).appendTo(container);
+
+		// 2. Build Header
 		let headerDaysHtml = "";
 		for (let i = 0; i < totalDays; i++) {
 			const d = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+			const isWknd = (d.getDay() === 0 || d.getDay() === 6);
 			const dayStr = d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
-			headerDaysHtml += `<div class="aps-gantt-day-col" style="width: ${me.day_width}px;">${dayStr}</div>`;
+			headerDaysHtml += `<div class="aps-gantt-day-col ${isWknd ? 'weekend-col' : ''}" style="width: ${me.day_width}px;">${dayStr}</div>`;
 		}
 
 		const ganttHeader = $(`
@@ -440,8 +652,17 @@ class APSWorkbench {
 			tasksByWs[t.workstation].push(t);
 		});
 
-		// 2. Build Workstation Rows
-		Object.keys(tasksByWs).forEach(wsName => {
+		// 3. Build Workstation Rows (Filter to active workstations if specific WO or search is selected)
+		const filterWoVal = $("#gantt-filter-wo").val();
+		const filterActive = filterWoVal || (me.current_search_query && me.current_search_query.trim());
+		const visibleWsKeys = Object.keys(tasksByWs).filter(wsName => {
+			if (filterActive) {
+				return tasksByWs[wsName].length > 0;
+			}
+			return true;
+		});
+
+		visibleWsKeys.forEach(wsName => {
 			const wsTasks = tasksByWs[wsName];
 			const wsLabel = data.workstations.find(w => w.name === wsName)?.workstation_name || wsName;
 
@@ -457,6 +678,45 @@ class APSWorkbench {
 
 			const cellContainer = row.find(".aps-gantt-timeline-cells");
 
+			// 1. Render Weekend blocked tarjas for this workstation if not allowed
+			const wsObj = data.workstations.find(w => w.name === wsName);
+			const allowsWeekend = wsObj && wsObj.allow_weekend_work == 1;
+
+			if (!allowsWeekend) {
+				for (let dIdx = 0; dIdx < totalDays; dIdx++) {
+					const dayDate = new Date(startDate.getTime() + dIdx * 24 * 60 * 60 * 1000);
+					const dayOfWeek = dayDate.getDay();
+					if (dayOfWeek === 0 || dayOfWeek === 6) {
+						const leftPx = dIdx * me.day_width;
+						const label = dayOfWeek === 6 ? "Sáb (Indisponível)" : "Dom (Indisponível)";
+						$(`
+							<div class="aps-gantt-blocked-interval weekend" style="left: ${leftPx}px; width: ${me.day_width}px;" title="Fim de Semana: ${dayDate.toLocaleDateString('pt-BR')} (Posto Indisponível)">
+								<span>${label}</span>
+							</div>
+						`).appendTo(cellContainer);
+					}
+				}
+			}
+
+			// 2. Render Maintenance & Custom blocks from APS Resource Block
+			const wsBlocked = (data.blocked_periods || []).filter(b => b.workstation === wsName && b.type === "block");
+			wsBlocked.forEach(blk => {
+				const bStart = new Date(blk.from_datetime).getTime();
+				const bEnd = new Date(blk.to_datetime).getTime();
+				if (bEnd > startDate.getTime() && bStart < endDate.getTime()) {
+					const offsetDays = Math.max(0, (bStart - startDate.getTime()) / (1000 * 60 * 60 * 24));
+					const leftPx = offsetDays * me.day_width;
+					const durationDays = (Math.min(endDate.getTime(), bEnd) - Math.max(startDate.getTime(), bStart)) / (1000 * 60 * 60 * 24);
+					const widthPx = Math.max(40, durationDays * me.day_width);
+
+					$(`
+						<div class="aps-gantt-blocked-interval maintenance" style="left: ${leftPx}px; width: ${widthPx}px; background-color: ${blk.color || '#FEB2B2'};" title="${blk.title}&#10;${blk.from_datetime} até ${blk.to_datetime}">
+							<span style="padding: 2px 4px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${blk.title}</span>
+						</div>
+					`).appendTo(cellContainer);
+				}
+			});
+
 			// Position task bars
 			wsTasks.forEach(task => {
 				const tStart = new Date(task.start_date).getTime();
@@ -467,10 +727,10 @@ class APSWorkbench {
 				const durationDays = Math.max(0.05, (tEnd - tStart) / (1000 * 60 * 60 * 24));
 				const widthPx = Math.max(90, durationDays * me.day_width);
 
-				const statusClass = task.has_conflict ? "conflict" : (task.is_adjusted ? "adjusted" : "");
+				const statusClass = task.color_status || (task.has_conflict ? "delayed" : (task.is_adjusted ? "adjusted" : "scheduled"));
 
 				const taskBar = $(`
-					<div class="aps-task-bar ${statusClass}" data-op-id="${task.id}" data-wo="${task.work_order}" data-seq="${task.sequence_id}" style="left: ${leftPx}px; width: ${widthPx}px;" title="OP: ${task.work_order} - ${task.operation}&#10;Início: ${task.start_date}&#10;Término: ${task.end_date}&#10;Qtd: ${task.qty}">
+					<div class="aps-task-bar ${statusClass}" data-op-id="${task.id}" data-wo="${task.work_order}" data-seq="${task.sequence_id}" style="left: ${leftPx}px; width: ${widthPx}px;" title="OP: ${task.work_order} - ${task.operation}&#10;Situação: ${task.status_label || task.status}&#10;Início: ${task.start_date}&#10;Término: ${task.end_date}&#10;Qtd: ${task.qty}">
 						<div class="aps-task-content">
 							<span class="aps-task-badge">${task.sequence_id}</span>
 							<b>${task.operation}</b>
@@ -600,13 +860,20 @@ class APSWorkbench {
 		const me = this;
 		frappe.call({
 			method: "erpz_aps.api.get_scheduled_operations_summary",
-			args: { ticket_name: this.current_ticket, page_length: 100 },
+			args: { ticket_name: this.current_ticket, page_length: 200 },
 			callback: function(r) {
 				const tbody = $("#aps-ops-tbody").empty();
 				if (r.message && r.message.items) {
-					r.message.items.forEach(o => {
+					r.message.items.forEach((o, index) => {
+						const isAdjustedBadge = o.is_adjusted ? `<span class="badge badge-warning ml-1">Ajustado</span>` : "";
+						const statusBadge = o.status === "Atrasada" ? "badge-danger" : (o.status === "Concluída" ? "badge-success" : "badge-info");
+
 						tbody.append(`
 							<tr>
+								<td class="font-weight-bold text-muted text-center">${index + 1}</td>
+								<td><b>${frappe.datetime.str_to_user(o.planned_start_time)}</b></td>
+								<td><b>${frappe.datetime.str_to_user(o.planned_end_time)}</b></td>
+								<td><span class="badge badge-light">${o.workstation}</span></td>
 								<td>
 									<a href="#" class="btn-open-wo font-weight-bold text-primary" data-wo="${o.work_order}">
 										<i class="octicon octicon-link-external mr-1"></i>${o.work_order}
@@ -614,14 +881,11 @@ class APSWorkbench {
 								</td>
 								<td><strong>${o.production_item}</strong><br><small class="text-muted">${o.item_name || ''}</small></td>
 								<td><span class="badge badge-secondary mr-1">${o.sequence_id}</span> <b>${o.operation}</b></td>
-								<td>${o.workstation}</td>
-								<td>${frappe.datetime.str_to_user(o.planned_start_time)}</td>
-								<td>${frappe.datetime.str_to_user(o.planned_end_time)}</td>
 								<td>${o.duration_mins} min</td>
 								<td>${o.predecessor_operation || '-'}</td>
-								<td><span class="badge ${o.status === 'Atrasada' ? 'badge-danger' : 'badge-info'}">${o.status}</span></td>
+								<td><span class="badge ${statusBadge}">${o.status}</span>${isAdjustedBadge}</td>
 								<td>
-									<button class="btn btn-xs btn-default btn-open-wo" data-wo="${o.work_order}">
+									<button class="btn btn-xs btn-default btn-open-wo" data-wo="${o.work_order}" title="Abrir Ordem de Produção">
 										<i class="octicon octicon-eye"></i> Abrir OP
 									</button>
 								</td>
@@ -637,6 +901,22 @@ class APSWorkbench {
 				}
 			}
 		});
+	}
+
+	export_gantt_excel() {
+		const me = this;
+		if (!this.current_ticket) return;
+		const filter_wo = $("#gantt-filter-wo").val() || "";
+		const search_val = (!filter_wo && (me.current_search_query || $("#gantt-filter-search").val())) ?
+			(me.current_search_query || $("#gantt-filter-search").val()).trim() : "";
+
+		let url = `/api/method/erpz_aps.api.export_aps_gantt_excel?ticket_name=${encodeURIComponent(me.current_ticket)}`;
+		if (filter_wo) {
+			url += `&work_order=${encodeURIComponent(filter_wo)}`;
+		} else if (search_val) {
+			url += `&search=${encodeURIComponent(search_val)}`;
+		}
+		window.open(url);
 	}
 
 	load_adjustment_history() {
@@ -728,5 +1008,58 @@ class APSWorkbench {
 				}
 			});
 		});
+	}
+
+	show_import_routing_dialog() {
+		const me = this;
+		let d = new frappe.ui.Dialog({
+			title: __("Importar Roteiro Produtivo por Produto (Excel)"),
+			fields: [
+				{
+					fieldtype: "HTML",
+					fieldname: "instructions",
+					options: `
+						<div class="alert alert-info small mb-3">
+							<b>Instruções para Cadastro em Massa do Roteiro:</b><br>
+							No modelo Excel, cadastre todas as operações de cada produto linha por linha (ex: linha 1: 10 - Cortar, linha 2: 20 - Dobrar, linha 3: 30 - Embalar).<br>
+							Informe a estação titular, a quantidade de referência (ex: 5 peças), o tempo (ex: 15 min), a sobreposição em % e a estação alternativa do produto.
+							<div class="mt-2">
+								<a href="/api/method/erpz_aps.api.download_routing_template" class="btn btn-xs btn-primary" target="_blank">
+									<i class="octicon octicon-cloud-download"></i> Baixar Modelo Excel (.xlsx)
+								</a>
+							</div>
+						</div>
+					`
+				},
+				{
+					label: __("Arquivo Excel (.xlsx)"),
+					fieldname: "excel_file",
+					fieldtype: "Attach",
+					reqd: 1
+				}
+			],
+			primary_action_label: __("Importar Roteiros"),
+			primary_action(values) {
+				d.hide();
+				frappe.show_alert({ message: __("Processando roteiros produtivos..."), indicator: "blue" });
+				frappe.call({
+					method: "erpz_aps.api.import_product_routing_excel",
+					args: { file_url: values.excel_file },
+					freeze: true,
+					freeze_message: __("Importando operações e recursos alternativos..."),
+					callback: function(r) {
+						if (r.message && r.message.success) {
+							frappe.msgprint({
+								title: __("Roteiros Importados"),
+								indicator: "green",
+								message: __("Foram importados {0} roteiros com {1} operações sequenciadas com sucesso!", [r.message.imported_routings, r.message.total_operations])
+							});
+							me.reload_all();
+						}
+					}
+				});
+			}
+		});
+		d.show();
 	}
 }

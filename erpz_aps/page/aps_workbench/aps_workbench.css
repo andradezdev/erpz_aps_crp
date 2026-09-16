@@ -284,10 +284,192 @@
 	white-space: nowrap;
 }
 
+.aps-task-bar.completed {
+	background: linear-gradient(135deg, #22543d, #38a169) !important;
+	border: 1px solid #2f855a;
+}
+
+.aps-task-bar.in-progress {
+	background: linear-gradient(135deg, #b7791f, #ecc94b) !important;
+	color: #1a202c !important;
+	border: 1px solid #d69e2e;
+}
+
+.aps-task-bar.delayed {
+	background: linear-gradient(135deg, #9b2c2c, #e53e3e) !important;
+}
+
+/* Blocked & Weekend intervals on Gantt row */
+.aps-gantt-blocked-interval {
+	position: absolute;
+	top: 0px;
+	height: 100%;
+	background: repeating-linear-gradient(45deg, #edf2f7, #edf2f7 8px, #e2e8f0 8px, #e2e8f0 16px) !important;
+	border-left: 1px dashed #cbd5e0;
+	border-right: 1px dashed #cbd5e0;
+	border-radius: 2px;
+	z-index: 3;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	color: #718096;
+	font-size: 10px;
+	font-weight: 700;
+	opacity: 0.90;
+	pointer-events: auto;
+}
+
+.aps-gantt-blocked-interval.weekend {
+	background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 6px, #cbd5e0 6px, #cbd5e0 12px) !important;
+	color: #4a5568 !important;
+}
+
+.aps-gantt-blocked-interval.maintenance {
+	background: repeating-linear-gradient(45deg, #fed7d7, #fed7d7 8px, #feb2b2 8px, #feb2b2 16px) !important;
+	border-left: 2px solid #e53e3e;
+	border-right: 2px solid #e53e3e;
+	color: #9b2c2c !important;
+}
+
+.aps-gantt-day-col.weekend-col {
+	background: #e2e8f0 !important;
+	color: #718096 !important;
+	font-weight: 700 !important;
+}
+
+/* Gantt Legend */
+.aps-gantt-legend {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+	font-size: 11px;
+	font-weight: 600;
+	margin-bottom: 12px;
+	padding: 8px 14px;
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+	border-radius: 6px;
+}
+
+.aps-legend-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.aps-legend-color {
+	width: 14px;
+	height: 14px;
+	border-radius: 3px;
+	display: inline-block;
+}
+
 .aps-task-badge {
 	background: rgba(255,255,255,0.25);
 	padding: 1px 5px;
 	border-radius: 3px;
 	font-size: 10px;
 	margin-right: 4px;
+}
+
+/* Gantt Work Order Searchable Filter */
+.gantt-search-wrapper {
+	position: relative;
+	min-width: 340px;
+	max-width: 520px;
+	width: 100%;
+}
+
+.gantt-search-box {
+	display: flex;
+	align-items: center;
+	background: #ffffff;
+	border: 1px solid var(--border-color, #d1d8dd);
+	border-radius: 6px;
+	padding: 3px 10px;
+	transition: all 0.2s ease;
+	box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.gantt-search-box:focus-within {
+	border-color: var(--primary, #2490ef);
+	box-shadow: 0 0 0 2px rgba(36, 144, 239, 0.18);
+}
+
+.gantt-search-box input {
+	border: none !important;
+	outline: none !important;
+	box-shadow: none !important;
+	padding: 4px 6px;
+	font-size: 12.5px;
+	width: 100%;
+	background: transparent;
+	color: var(--text-color, #1f272e);
+}
+
+.gantt-search-box input::placeholder {
+	color: #9aa5b1;
+	font-size: 12px;
+}
+
+.gantt-search-clear {
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	color: #8d99a6;
+	padding: 0 4px;
+	font-size: 16px;
+	line-height: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.gantt-search-clear:hover {
+	color: #e53e3e;
+}
+
+.gantt-search-dropdown {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	background: #ffffff;
+	border: 1px solid var(--border-color, #d1d8dd);
+	border-radius: 6px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+	margin-top: 4px;
+	max-height: 320px;
+	overflow-y: auto;
+	z-index: 1050;
+	display: none;
+}
+
+.gantt-search-item {
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--border-color, #edf2f7);
+	cursor: pointer;
+	transition: background-color 0.12s ease;
+}
+
+.gantt-search-item:last-child {
+	border-bottom: none;
+}
+
+.gantt-search-item:hover {
+	background-color: var(--bg-light-gray, #f7fafc);
+}
+
+.gantt-search-item.active {
+	background-color: #ebf8ff;
+	border-left: 3px solid var(--primary, #2490ef);
+}
+
+.gantt-search-item mark {
+	padding: 0 2px;
+	background-color: #feebc8;
+	color: #744210;
+	border-radius: 2px;
 }

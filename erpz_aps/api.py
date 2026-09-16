@@ -59,7 +59,7 @@ def execute_ticket(ticket_name):
     return res
 
 @frappe.whitelist()
-def get_gantt_data(ticket_name, work_order=None, group_by="workstation"):
+def get_gantt_data(ticket_name, work_order=None, search=None, group_by="workstation"):
     """
     Returns structured data for the interactive Gantt chart:
     - tasks: list of operation bars with real-time pointing status (Green=Completed, Amber=In Progress, Blue=Planned)
@@ -73,12 +73,23 @@ def get_gantt_data(ticket_name, work_order=None, group_by="workstation"):
     h_end = get_datetime(ticket.horizon_end) if ticket.horizon_end else (h_start + timedelta(days=30))
 
     filters = {"aps_ticket": ticket_name}
+    or_filters = None
+
     if work_order:
         filters["work_order"] = work_order
+    elif search and str(search).strip():
+        term = f"%{str(search).strip()}%"
+        or_filters = [
+            ["work_order", "like", term],
+            ["production_item", "like", term],
+            ["item_name", "like", term],
+            ["operation", "like", term]
+        ]
 
     ops = frappe.get_all(
         "APS Scheduled Operation",
         filters=filters,
+        or_filters=or_filters,
         fields=[
             "name", "work_order", "mrp_ticket", "production_item", "item_name",
             "operation", "sequence_id", "workstation", "planned_start_time",
@@ -90,7 +101,9 @@ def get_gantt_data(ticket_name, work_order=None, group_by="workstation"):
     )
 
     distinct_wos = frappe.db.sql("""
-        SELECT DISTINCT work_order, production_item, item_name, qty_to_produce
+        SELECT DISTINCT work_order, production_item, 
+               COALESCE(NULLIF(item_name, ''), (SELECT item_name FROM `tabItem` WHERE name = `tabAPS Scheduled Operation`.production_item)) as item_name,
+               qty_to_produce
         FROM `tabAPS Scheduled Operation`
         WHERE aps_ticket = %s
         ORDER BY work_order ASC
@@ -457,7 +470,7 @@ def style_excel_sheet(ws, title, headers, rows, header_color="1B365D"):
         ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
 
 @frappe.whitelist()
-def export_aps_gantt_excel(ticket_name):
+def export_aps_gantt_excel(ticket_name, work_order=None, search=None):
     """
     Exports the updated Gantt scheduled operations in chronological sequence and formatted in list mode.
     """
@@ -471,9 +484,23 @@ def export_aps_gantt_excel(ticket_name):
     ws1 = wb.active
     ws1.title = "Sequenciamento Gantt"
 
+    filters = {"aps_ticket": ticket_name}
+    or_filters = None
+    if work_order:
+        filters["work_order"] = work_order
+    elif search and str(search).strip():
+        term = f"%{str(search).strip()}%"
+        or_filters = [
+            ["work_order", "like", term],
+            ["production_item", "like", term],
+            ["item_name", "like", term],
+            ["operation", "like", term]
+        ]
+
     ops = frappe.get_all(
         "APS Scheduled Operation",
-        filters={"aps_ticket": ticket_name},
+        filters=filters,
+        or_filters=or_filters,
         fields=[
             "work_order", "mrp_ticket", "production_item", "item_name",
             "operation", "sequence_id", "workstation", "planned_start_time",
