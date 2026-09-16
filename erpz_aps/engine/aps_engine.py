@@ -147,7 +147,12 @@ class APSEngine:
         horizon_start = get_datetime(self.ticket.horizon_start or now_datetime())
         horizon_end = get_datetime(self.ticket.horizon_end or (horizon_start + timedelta(days=30)))
 
-        # Pre-load custom APS Operations
+        # Pre-load custom APS Operations and Product Routings
+        product_routings = {}
+        for r_doc in frappe.get_all("APS Product Routing", filters={"is_active": 1}, fields=["name", "item_code"]):
+            doc = frappe.get_doc("APS Product Routing", r_doc.name)
+            product_routings[r_doc.item_code] = doc
+
         aps_op_records = frappe.get_all(
             "APS Operation",
             filters={"is_active": 1},
@@ -160,13 +165,35 @@ class APSEngine:
             if qty <= 0:
                 continue
 
-            # Load operations from Work Order or BOM
-            ops = frappe.get_all(
-                "Work Order Operation",
-                filters={"parent": wo_name},
-                fields=["operation", "workstation", "time_in_mins", "sequence_id", "idx"],
-                order_by="sequence_id ASC, idx ASC"
-            )
+            ops = []
+            # 1. First priority: APS Product Routing (complete multi-operation routing per product)
+            routing = product_routings.get(wo.production_item)
+            if routing and routing.operations:
+                for r_op in sorted(routing.operations, key=lambda x: x.sequence_id or 10):
+                    ops.append({
+                        "operation": r_op.operation_name or r_op.operation_code,
+                        "operation_code": r_op.operation_code,
+                        "workstation": r_op.workstation,
+                        "sequence_id": r_op.sequence_id or 10,
+                        "batch_qty": r_op.batch_qty,
+                        "cycle_time_mins": r_op.cycle_time_mins,
+                        "setup_time_mins": r_op.setup_time_mins,
+                        "transfer_time_mins": r_op.transfer_time_mins,
+                        "overlap_pct": r_op.overlap_pct,
+                        "allow_wo_overlap_pct": r_op.allow_wo_overlap_pct,
+                        "alternative_workstation": r_op.alternative_workstation,
+                        "alt_workstation_2": r_op.alt_workstation_2,
+                        "time_in_mins": r_op.time_per_unit_mins
+                    })
+
+            # 2. Second priority: Work Order Operations / BOM Operations
+            if not ops:
+                ops = frappe.get_all(
+                    "Work Order Operation",
+                    filters={"parent": wo_name},
+                    fields=["operation", "workstation", "time_in_mins", "sequence_id", "idx"],
+                    order_by="sequence_id ASC, idx ASC"
+                )
 
             if not ops and wo.bom_no:
                 ops = frappe.get_all(
@@ -179,7 +206,7 @@ class APSEngine:
                     o["sequence_id"] = (i + 1) * 10
 
             if not ops:
-                # If no operations defined, check if custom APS Operation matches the item
+                # 3. Third priority: Standalone APS Operation records
                 custom_item_ops = [ao for ao in aps_op_records if ao.item_code == wo.production_item]
                 if custom_item_ops:
                     ops = [{
@@ -209,33 +236,42 @@ class APSEngine:
                 if not ws_name or ws_name not in self.workstations:
                     ws_name = list(self.workstations.keys())[0] if self.workstations else "Posto 01"
 
-                # Check custom APS Operation for reference metrics and overlap %
-                matched_aps_op = None
-                for ao in aps_op_records:
-                    if ao.item_code == wo.production_item and (ao.sequence_id == op.get("sequence_id") or ao.operation_name == op.get("operation") or ao.operation_code == op.get("operation")):
-                        matched_aps_op = ao
-                        break
-                if not matched_aps_op:
-                    for ao in aps_op_records:
-                        if not ao.item_code and (ao.operation_name == op.get("operation") or ao.operation_code == op.get("operation") or ao.sequence_id == op.get("sequence_id")):
-                            matched_aps_op = ao
-                            break
-
-                if matched_aps_op:
-                    ws_name = matched_aps_op.workstation or ws_name
-                    setup_mins = flt(matched_aps_op.setup_time_mins or 0.0)
-                    batch_ref = flt(matched_aps_op.batch_qty or 1.0)
-                    cycle_ref = flt(matched_aps_op.cycle_time_mins or 10.0)
+                # Check custom APS Operation or Product Routing for metrics and overlap %
+                if op.get("batch_qty"):
+                    batch_ref = flt(op.get("batch_qty") or 1.0)
+                    cycle_ref = flt(op.get("cycle_time_mins") or 10.0)
+                    setup_mins = flt(op.get("setup_time_mins") or 0.0)
+                    transfer_buffer = flt(op.get("transfer_time_mins") or 15.0)
+                    overlap_pct = flt(op.get("overlap_pct") or 0.0)
                     unit_time_mins = cycle_ref / max(0.001, batch_ref)
                     total_run_mins = qty * unit_time_mins
-                    overlap_pct = flt(matched_aps_op.overlap_pct or 0.0)
-                    transfer_buffer = flt(matched_aps_op.transfer_time_mins or 15.0)
                 else:
-                    setup_mins = 15.0 if self.settings.consider_setup_time else 0.0
-                    run_per_unit = flt(op.get("time_in_mins") or 10.0)
-                    total_run_mins = qty * run_per_unit
-                    overlap_pct = 0.0
-                    transfer_buffer = 15.0 if self.settings.consider_transfer_time and prev_op_end else 0.0
+                    matched_aps_op = None
+                    for ao in aps_op_records:
+                        if ao.item_code == wo.production_item and (ao.sequence_id == op.get("sequence_id") or ao.operation_name == op.get("operation")):
+                            matched_aps_op = ao
+                            break
+                    if not matched_aps_op:
+                        for ao in aps_op_records:
+                            if not ao.item_code and (ao.operation_name == op.get("operation") or ao.sequence_id == op.get("sequence_id")):
+                                matched_aps_op = ao
+                                break
+
+                    if matched_aps_op:
+                        ws_name = matched_aps_op.workstation or ws_name
+                        setup_mins = flt(matched_aps_op.setup_time_mins or 0.0)
+                        batch_ref = flt(matched_aps_op.batch_qty or 1.0)
+                        cycle_ref = flt(matched_aps_op.cycle_time_mins or 10.0)
+                        unit_time_mins = cycle_ref / max(0.001, batch_ref)
+                        total_run_mins = qty * unit_time_mins
+                        overlap_pct = flt(matched_aps_op.overlap_pct or 0.0)
+                        transfer_buffer = flt(matched_aps_op.transfer_time_mins or 15.0)
+                    else:
+                        setup_mins = 15.0 if self.settings.consider_setup_time else 0.0
+                        run_per_unit = flt(op.get("time_in_mins") or 10.0)
+                        total_run_mins = qty * run_per_unit
+                        overlap_pct = 0.0
+                        transfer_buffer = 15.0 if self.settings.consider_transfer_time and prev_op_end else 0.0
 
                 efficiency = self.workstations.get(ws_name, {}).get("efficiency", 1.0)
                 total_duration_mins = setup_mins + (total_run_mins / max(0.1, efficiency))
@@ -251,8 +287,44 @@ class APSEngine:
                 else:
                     earliest_start = wo_cursor
 
-                # Finite Capacity: Find slot on workstation
+                # Finite Capacity: Find slot on primary workstation
                 actual_start, actual_end = self.find_finite_slot(ws_name, earliest_start, total_duration_mins)
+
+                # Alternative Resource Fallback Evaluation (on Overload or Delay)
+                is_alt_used = 0
+                original_ws = ws_name
+
+                candidates_alt = []
+                # A. Product Routing specific alternatives
+                if op.get("alternative_workstation"):
+                    candidates_alt.append(op.get("alternative_workstation"))
+                if op.get("alt_workstation_2"):
+                    candidates_alt.append(op.get("alt_workstation_2"))
+
+                # B. Global Workstation alternatives (from APS Resource)
+                res_alts = frappe.get_all("APS Alternative Resource", filters={"parent": ws_name}, fields=["alternative_workstation"], order_by="priority ASC")
+                for ra in res_alts:
+                    if ra.alternative_workstation not in candidates_alt:
+                        candidates_alt.append(ra.alternative_workstation)
+
+                if self.ticket.consider_alternatives and candidates_alt:
+                    is_delayed_on_primary = bool(wo.expected_delivery_date and actual_end > get_datetime(wo.expected_delivery_date))
+                    is_busy_on_primary = bool(actual_start > earliest_start)
+
+                    if is_delayed_on_primary or is_busy_on_primary:
+                        for alt_ws in candidates_alt:
+                            if alt_ws not in self.workstations:
+                                continue
+                            alt_eff = self.workstations[alt_ws].get("efficiency", 1.0)
+                            alt_dur = setup_mins + (total_run_mins / max(0.1, alt_eff))
+                            alt_start, alt_end = self.find_finite_slot(alt_ws, earliest_start, alt_dur)
+                            if alt_start < actual_start:
+                                ws_name = alt_ws
+                                actual_start = alt_start
+                                actual_end = alt_end
+                                is_alt_used = 1
+                                total_duration_mins = alt_dur
+                                break
 
                 # Record scheduled operation
                 delay_hours = 0.0
@@ -275,8 +347,8 @@ class APSEngine:
                     "operation": op.get("operation"),
                     "sequence_id": cint(op.get("sequence_id") or 10),
                     "workstation": ws_name,
-                    "is_alternative_used": 0,
-                    "original_workstation": ws_name,
+                    "is_alternative_used": is_alt_used,
+                    "original_workstation": original_ws,
                     "planned_start_time": actual_start,
                     "planned_end_time": actual_end,
                     "duration_mins": round(total_duration_mins, 1),

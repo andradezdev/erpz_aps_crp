@@ -17,7 +17,11 @@
   "overload_threshold_pct",
   "col_2",
   "auto_update_job_cards",
-  "auto_update_work_orders"
+  "auto_update_work_orders",
+  "sec_alternatives",
+  "alternative_resource_strategy",
+  "switch_to_alternative_on_overload",
+  "switch_to_alternative_on_delay"
  ],
  "fields": [
   {
@@ -98,6 +102,30 @@
    "fieldname": "auto_update_work_orders",
    "fieldtype": "Check",
    "label": "Atualizar Datas da Work Order ao Efetivar",
+   "default": "1"
+  },
+  {
+   "fieldname": "sec_alternatives",
+   "fieldtype": "Section Break",
+   "label": "Parâmetros de Recursos Alternativos"
+  },
+  {
+   "fieldname": "alternative_resource_strategy",
+   "fieldtype": "Select",
+   "label": "Estratégia de Busca de Recursos Alternativos",
+   "options": "Priorizar Alternativo do Produto (depois da Estação)\nPriorizar Alternativo da Estação (depois do Produto)\nApenas Alternativo do Produto\nApenas Alternativo da Estação\nDesabilitar Recursos Alternativos",
+   "default": "Priorizar Alternativo do Produto (depois da Estação)"
+  },
+  {
+   "fieldname": "switch_to_alternative_on_overload",
+   "fieldtype": "Check",
+   "label": "Acionar Alternativo quando Posto Titular estiver em Sobrecarga / Gargalo",
+   "default": "1"
+  },
+  {
+   "fieldname": "switch_to_alternative_on_delay",
+   "fieldtype": "Check",
+   "label": "Acionar Alternativo quando Posto Titular provocar Atraso na Data de Entrega",
    "default": "1"
   }
  ],

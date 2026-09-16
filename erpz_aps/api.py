@@ -405,3 +405,153 @@ def export_aps_gantt_excel(ticket_name):
     buf = io.BytesIO()
     wb.save(buf)
     provide_binary_file(f"Gantt_Sequenciamento_{ticket_name}", "xlsx", buf.getvalue())
+
+@frappe.whitelist()
+def download_routing_template(item_code=None):
+    """Generates an Excel template for bulk importing product operations routing."""
+    import openpyxl
+    import io
+    from frappe.desk.utils import provide_binary_file
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Roteiro Produtivo"
+
+    title = "ERPZ APS — Modelo de Importação do Roteiro Produtivo por Produto"
+    headers = [
+        "Código do Item*", "Sequência*", "Código da Operação*", "Nome da Operação",
+        "Estação de Trabalho*", "Qtd Referência*", "Tempo Referência (min)*",
+        "Setup (min)", "Transferência (min)", "Sobreposição Próx Op (%)",
+        "Sobreposição Entre OPs (%)", "Estação Alternativa Produto", "Instruções Técnicas"
+    ]
+    code = item_code or "TEST-MRP-A"
+    rows = [
+        [code, 10, "10 - Cortar", "Cortar", "SERRA 001", 5.0, 15.0, 10.0, 15.0, 50.0, 20.0, "Centro Usinagem 02", "Corte longitudinal"],
+        [code, 20, "20 - Dobrar", "Dobrar", "Centro Usinagem 02", 10.0, 20.0, 15.0, 15.0, 30.0, 10.0, "Torno CNC 01", "Dobra em 90 graus"],
+        [code, 30, "30 - Embalar", "Embalar", "Torno CNC 01", 50.0, 25.0, 5.0, 0.0, 0.0, 0.0, "", "Embalagem e identificação"]
+    ]
+
+    style_excel_sheet(ws, title, headers, rows, header_color="1B365D")
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    provide_binary_file("Modelo_Roteiro_Processo_Produtivo_APS", "xlsx", buf.getvalue())
+
+@frappe.whitelist()
+def import_product_routing_excel(file_url=None):
+    """
+    Imports product operations routing from an uploaded Excel file,
+    populating or updating APS Product Routing documents.
+    """
+    import openpyxl
+    import io
+    from collections import defaultdict
+
+    if not frappe.has_permission("APS Product Routing", "write"):
+        frappe.throw(_("Sem permissão para cadastrar Roteiros Produtivos."))
+
+    file_content = None
+    if "file" in frappe.request.files:
+        file_content = frappe.request.files["file"].read()
+    elif file_url:
+        _file = frappe.get_doc("File", {"file_url": file_url})
+        file_content = _file.get_content()
+
+    if not file_content:
+        frappe.throw(_("Nenhum arquivo enviado para importação."))
+
+    wb = openpyxl.load_workbook(io.BytesIO(file_content), data_only=True)
+    ws = wb.active
+
+    # Find header row
+    header_row_idx = 1
+    for r_idx in range(1, 10):
+        val = str(ws.cell(row=r_idx, column=1).value or "").lower()
+        if "código" in val or "codigo" in val or "item" in val:
+            header_row_idx = r_idx
+            break
+
+    start_data_row = header_row_idx + 1
+
+    # Group rows by item_code
+    rows_by_item = defaultdict(list)
+    errors = []
+
+    for r_num in range(start_data_row, ws.max_row + 1):
+        item_code = str(ws.cell(row=r_num, column=1).value or "").strip()
+        if not item_code:
+            continue
+
+        raw_seq = ws.cell(row=r_num, column=2).value
+        op_code = str(ws.cell(row=r_num, column=3).value or "").strip()
+        op_name = str(ws.cell(row=r_num, column=4).value or "").strip()
+        workstation = str(ws.cell(row=r_num, column=5).value or "").strip()
+        raw_batch = ws.cell(row=r_num, column=6).value
+        raw_cycle = ws.cell(row=r_num, column=7).value
+        raw_setup = ws.cell(row=r_num, column=8).value
+        raw_trans = ws.cell(row=r_num, column=9).value
+        raw_overlap = ws.cell(row=r_num, column=10).value
+        raw_wo_overlap = ws.cell(row=r_num, column=11).value
+        alt_ws = str(ws.cell(row=r_num, column=12).value or "").strip()
+        desc = str(ws.cell(row=r_num, column=13).value or "").strip()
+
+        if not frappe.db.exists("Item", item_code):
+            errors.append(f"Linha {r_num}: Item '{item_code}' não encontrado.")
+            continue
+
+        if not frappe.db.exists("Workstation", workstation):
+            errors.append(f"Linha {r_num}: Estação de trabalho '{workstation}' não encontrada.")
+            continue
+
+        batch_qty = flt(raw_batch) if raw_batch else 1.0
+        cycle_time = flt(raw_cycle) if raw_cycle else 10.0
+        unit_time = round(cycle_time / max(0.001, batch_qty), 4)
+
+        rows_by_item[item_code].append({
+            "sequence_id": cint(raw_seq or 10),
+            "operation_code": op_code or f"Op {raw_seq}",
+            "operation_name": op_name or op_code,
+            "workstation": workstation,
+            "batch_qty": batch_qty,
+            "cycle_time_mins": cycle_time,
+            "time_per_unit_mins": unit_time,
+            "setup_time_mins": flt(raw_setup or 0.0),
+            "transfer_time_mins": flt(raw_trans or 15.0),
+            "overlap_pct": flt(raw_overlap or 0.0),
+            "allow_wo_overlap_pct": flt(raw_wo_overlap or 0.0),
+            "alternative_workstation": alt_ws if frappe.db.exists("Workstation", alt_ws) else None,
+            "description": desc
+        })
+
+    imported_routings = 0
+    total_ops = 0
+
+    for item_code, op_list in rows_by_item.items():
+        if frappe.db.exists("APS Product Routing", {"item_code": item_code}):
+            routing = frappe.get_doc("APS Product Routing", {"item_code": item_code})
+        else:
+            routing = frappe.new_doc("APS Product Routing")
+            routing.item_code = item_code
+
+        routing.routing_name = f"Roteiro Padrão - {item_code}"
+        routing.is_active = 1
+        routing.operations = []
+
+        # Sort by sequence
+        op_list.sort(key=lambda x: x["sequence_id"])
+
+        for op_data in op_list:
+            routing.append("operations", op_data)
+            total_ops += 1
+
+        routing.save(ignore_permissions=True)
+        imported_routings += 1
+
+    frappe.db.commit()
+
+    return {
+        "success": True,
+        "imported_routings": imported_routings,
+        "total_operations": total_ops,
+        "errors": errors
+    }

@@ -36,7 +36,11 @@
   "approved_by",
   "executed_on",
   "executed_by",
-  "execution_time_seconds"
+  "execution_time_seconds",
+  "sec_alternatives",
+  "alternative_resource_strategy",
+  "switch_to_alternative_on_overload",
+  "switch_to_alternative_on_delay"
  ],
  "fields": [
   {
@@ -248,6 +252,30 @@
    "fieldtype": "Float",
    "label": "Tempo de Processamento (s)",
    "read_only": 1
+  },
+  {
+   "fieldname": "sec_alternatives",
+   "fieldtype": "Section Break",
+   "label": "Parâmetros de Recursos Alternativos"
+  },
+  {
+   "fieldname": "alternative_resource_strategy",
+   "fieldtype": "Select",
+   "label": "Estratégia de Busca de Recursos Alternativos",
+   "options": "Priorizar Alternativo do Produto (depois da Estação)\nPriorizar Alternativo da Estação (depois do Produto)\nApenas Alternativo do Produto\nApenas Alternativo da Estação\nDesabilitar Recursos Alternativos",
+   "default": "Priorizar Alternativo do Produto (depois da Estação)"
+  },
+  {
+   "fieldname": "switch_to_alternative_on_overload",
+   "fieldtype": "Check",
+   "label": "Acionar Alternativo quando Posto Titular estiver em Sobrecarga / Gargalo",
+   "default": "1"
+  },
+  {
+   "fieldname": "switch_to_alternative_on_delay",
+   "fieldtype": "Check",
+   "label": "Acionar Alternativo quando Posto Titular provocar Atraso na Data de Entrega",
+   "default": "1"
   }
  ],
  "links": [],

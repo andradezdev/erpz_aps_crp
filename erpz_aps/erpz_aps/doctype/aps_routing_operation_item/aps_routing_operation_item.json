@@ -1,0 +1,131 @@
+{
+ "actions": [],
+ "creation": "2026-09-13 04:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sequence_id",
+  "operation_code",
+  "operation_name",
+  "workstation",
+  "batch_qty",
+  "cycle_time_mins",
+  "time_per_unit_mins",
+  "setup_time_mins",
+  "transfer_time_mins",
+  "overlap_pct",
+  "allow_wo_overlap_pct",
+  "alternative_workstation",
+  "alt_workstation_2",
+  "description"
+ ],
+ "fields": [
+  {
+   "fieldname": "sequence_id",
+   "fieldtype": "Int",
+   "label": "Sequência",
+   "default": "10",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "operation_code",
+   "fieldtype": "Data",
+   "label": "Código Operação (ex: 10 - Cortar)",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "operation_name",
+   "fieldtype": "Data",
+   "label": "Nome da Operação",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "workstation",
+   "fieldtype": "Link",
+   "label": "Recurso Principal (Estação)",
+   "options": "Workstation",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "batch_qty",
+   "fieldtype": "Float",
+   "label": "Qtd Referência",
+   "default": "5.0",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "cycle_time_mins",
+   "fieldtype": "Float",
+   "label": "Tempo Ref (Minutos)",
+   "default": "15.0",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "time_per_unit_mins",
+   "fieldtype": "Float",
+   "label": "Tempo Unitário (min/peça)",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "setup_time_mins",
+   "fieldtype": "Float",
+   "label": "Setup (min)",
+   "default": "0.0"
+  },
+  {
+   "fieldname": "transfer_time_mins",
+   "fieldtype": "Float",
+   "label": "Transferência / Espera (min)",
+   "default": "15.0"
+  },
+  {
+   "fieldname": "overlap_pct",
+   "fieldtype": "Float",
+   "label": "Sobreposição Próx Op (%)",
+   "default": "0.0",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "allow_wo_overlap_pct",
+   "fieldtype": "Float",
+   "label": "Sobreposição Entre OPs (%)",
+   "default": "0.0"
+  },
+  {
+   "fieldname": "alternative_workstation",
+   "fieldtype": "Link",
+   "label": "Recurso Alternativo do Produto",
+   "options": "Workstation",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "alt_workstation_2",
+   "fieldtype": "Link",
+   "label": "2º Alternativo (Opcional)",
+   "options": "Workstation"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Instruções Técnicas"
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-13 04:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ERPZ APS",
+ "name": "APS Routing Operation Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "istable": 1
+}
