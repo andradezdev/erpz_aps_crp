@@ -1,149 +1,149 @@
 {
- "actions": [],
- "creation": "2026-09-13 02:00:00.000000",
- "doctype": "DocType",
- "engine": "InnoDB",
- "field_order": [
-  "workstation",
-  "resource_name",
-  "company",
-  "workstation_type",
-  "col_1",
-  "efficiency_factor",
-  "capacity_hours_per_day",
-  "holiday_list",
-  "is_active",
-  "sec_alternatives",
-  "alternatives",
-  "allow_weekend_work"
- ],
- "fields": [
-  {
-   "fieldname": "workstation",
-   "fieldtype": "Link",
-   "label": "Posto de Trabalho (ERPNext)",
-   "options": "Workstation",
-   "reqd": 1,
-   "unique": 1,
-   "in_list_view": 1
-  },
-  {
-   "fieldname": "resource_name",
-   "fieldtype": "Data",
-   "label": "Descrição do Recurso",
-   "in_list_view": 1
-  },
-  {
-   "fieldname": "company",
-   "fieldtype": "Link",
-   "label": "Empresa",
-   "options": "Company",
-   "reqd": 1,
-   "in_list_view": 1
-  },
-  {
-   "fieldname": "workstation_type",
-   "fieldtype": "Link",
-   "label": "Tipo de Posto",
-   "options": "Workstation Type"
-  },
-  {
-   "fieldname": "col_1",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "efficiency_factor",
-   "fieldtype": "Float",
-   "label": "Eficiência Efetiva (%)",
-   "default": "100.0",
-   "in_list_view": 1
-  },
-  {
-   "fieldname": "capacity_hours_per_day",
-   "fieldtype": "Float",
-   "label": "Horas Diárias Disponíveis",
-   "default": "8.0",
-   "in_list_view": 1
-  },
-  {
-   "fieldname": "holiday_list",
-   "fieldtype": "Link",
-   "label": "Calendário de Feriados",
-   "options": "Holiday List"
-  },
-  {
-   "fieldname": "is_active",
-   "fieldtype": "Check",
-   "label": "Ativo para Programação",
-   "default": "1",
-   "in_list_view": 1
-  },
-  {
-   "fieldname": "sec_alternatives",
-   "fieldtype": "Section Break",
-   "label": "Recursos e Postos Alternativos"
-  },
-  {
-   "fieldname": "alternatives",
-   "fieldtype": "Table",
-   "label": "Postos Alternativos",
-   "options": "APS Alternative Resource"
-  },
-  {
-   "fieldname": "allow_weekend_work",
-   "fieldtype": "Check",
-   "label": "Trabalho aos Finais de Semana Permitido (Sábado e Domingo)",
-   "default": "0",
-   "in_list_view": 1
-  }
- ],
- "links": [],
- "modified": "2026-09-13 02:00:00.000000",
- "modified_by": "Administrator",
- "module": "ERPZ APS",
- "name": "APS Resource",
- "owner": "Administrator",
- "permissions": [
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "System Manager",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Manufacturing Manager",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "delete": 0,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "Manufacturing User",
-   "share": 1,
-   "write": 1
-  }
- ],
- "sort_field": "modified",
- "sort_order": "DESC",
- "states": [],
- "track_changes": 1,
- "autoname": "field:workstation"
+    "actions": [],
+    "creation": "2026-09-13 02:00:00.000000",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "workstation",
+        "resource_name",
+        "company",
+        "workstation_type",
+        "col_1",
+        "efficiency_factor",
+        "capacity_hours_per_day",
+        "holiday_list",
+        "is_active",
+        "sec_alternatives",
+        "alternatives",
+        "allow_weekend_work"
+    ],
+    "fields": [
+        {
+            "fieldname": "workstation",
+            "fieldtype": "Link",
+            "label": "Posto de Trabalho (ERPZ)",
+            "options": "Workstation",
+            "reqd": 1,
+            "unique": 1,
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "resource_name",
+            "fieldtype": "Data",
+            "label": "Descrição do Recurso",
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "company",
+            "fieldtype": "Link",
+            "label": "Empresa",
+            "options": "Company",
+            "reqd": 1,
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "workstation_type",
+            "fieldtype": "Link",
+            "label": "Tipo de Posto",
+            "options": "Workstation Type"
+        },
+        {
+            "fieldname": "col_1",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "efficiency_factor",
+            "fieldtype": "Float",
+            "label": "Eficiência Efetiva (%)",
+            "default": "100.0",
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "capacity_hours_per_day",
+            "fieldtype": "Float",
+            "label": "Horas Diárias Disponíveis",
+            "default": "8.0",
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "holiday_list",
+            "fieldtype": "Link",
+            "label": "Calendário de Feriados",
+            "options": "Holiday List"
+        },
+        {
+            "fieldname": "is_active",
+            "fieldtype": "Check",
+            "label": "Ativo para Programação",
+            "default": "1",
+            "in_list_view": 1
+        },
+        {
+            "fieldname": "sec_alternatives",
+            "fieldtype": "Section Break",
+            "label": "Recursos e Postos Alternativos"
+        },
+        {
+            "fieldname": "alternatives",
+            "fieldtype": "Table",
+            "label": "Postos Alternativos",
+            "options": "APS Alternative Resource"
+        },
+        {
+            "fieldname": "allow_weekend_work",
+            "fieldtype": "Check",
+            "label": "Trabalho aos Finais de Semana Permitido (Sábado e Domingo)",
+            "default": "0",
+            "in_list_view": 1
+        }
+    ],
+    "links": [],
+    "modified": "2026-09-13 02:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "ERPZ APS",
+    "name": "APS Resource",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Manufacturing Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 1,
+            "delete": 0,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Manufacturing User",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": [],
+    "track_changes": 1,
+    "autoname": "field:workstation"
 }
